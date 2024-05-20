@@ -39,7 +39,7 @@ public class Main {
         calculateScaleButton.addActionListener(e -> calculateScale());
 
         JButton previewButton = new JButton("Preview");
-        previewButton.addActionListener(e -> imagePanel.previewImage());
+        previewButton.addActionListener(e -> previewImage());
 
         JButton printButton = new JButton("Print Image");
         printButton.addActionListener(e -> imagePanel.printImage(Float.parseFloat(scaleField.getText())));
@@ -99,6 +99,14 @@ public class Main {
         if (!originalSize.isEmpty() && !newSize.isEmpty()) {
             float scale = ScaleCalculator.calculateScale(Float.parseFloat(originalSize), Float.parseFloat(newSize));
             scaleField.setText(String.format("%.2f", scale));
+        }
+    }
+
+    private void previewImage() {
+        if (imagePanel.getImage() != null) {
+            float scale = Float.parseFloat(scaleField.getText());
+            PreviewDialog previewDialog = new PreviewDialog(frame, imagePanel.getRotatedImage(), scale);
+            previewDialog.setVisible(true);
         }
     }
 }

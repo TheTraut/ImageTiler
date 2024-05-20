@@ -7,11 +7,13 @@ import java.io.IOException;
 
 public class ImagePanel extends JPanel {
     private BufferedImage image;
+    private BufferedImage rotatedImage;
     private float rotationAngle = 0;
 
     public void setImage(String imagePath) {
         try {
             image = ImageIO.read(new File(imagePath));
+            rotatedImage = image;
             rotationAngle = 0;
             repaint();
         } catch (IOException e) {
@@ -19,12 +21,32 @@ public class ImagePanel extends JPanel {
         }
     }
 
+    public BufferedImage getImage() {
+        return image;
+    }
+
+    public BufferedImage getRotatedImage() {
+        return rotatedImage;
+    }
+
     public void rotateImage() {
         rotationAngle += 90;
         if (rotationAngle == 360) {
             rotationAngle = 0;
         }
+        rotatedImage = rotateBufferedImage(image, rotationAngle);
         repaint();
+    }
+
+    private BufferedImage rotateBufferedImage(BufferedImage img, float angle) {
+        int w = img.getWidth();
+        int h = img.getHeight();
+        BufferedImage rotated = new BufferedImage(h, w, img.getType());
+        Graphics2D graphic = rotated.createGraphics();
+        graphic.rotate(Math.toRadians(angle), w / 2.0, h / 2.0);
+        graphic.drawImage(img, 0, 0, null);
+        graphic.dispose();
+        return rotated;
     }
 
     public void previewImage() {
@@ -32,18 +54,17 @@ public class ImagePanel extends JPanel {
     }
 
     public void printImage(float scale) {
-        TilePrinter.printTiledImage(image, scale);
+        TilePrinter.printTiledImage(rotatedImage, scale);
     }
 
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
-        if (image != null) {
+        if (rotatedImage != null) {
             Graphics2D g2d = (Graphics2D) g.create();
-            int x = (getWidth() - image.getWidth()) / 2;
-            int y = (getHeight() - image.getHeight()) / 2;
-            g2d.rotate(Math.toRadians(rotationAngle), getWidth() / 2, getHeight() / 2);
-            g2d.drawImage(image, x, y, this);
+            int x = (getWidth() - rotatedImage.getWidth()) / 2;
+            int y = (getHeight() - rotatedImage.getHeight()) / 2;
+            g2d.drawImage(rotatedImage, x, y, this);
             g2d.dispose();
         }
     }
