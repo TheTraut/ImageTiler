@@ -1,7 +1,6 @@
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
+import java.io.File;
 
 public class Main {
     private JFrame frame;
@@ -62,7 +61,32 @@ public class Main {
     }
 
     private void selectImage() {
-        JFileChooser fileChooser = new JFileChooser();
+        JFileChooser fileChooser = new JFileChooser(System.getProperty("user.home") + "/Downloads");
+        fileChooser.setFileFilter(new javax.swing.filechooser.FileFilter() {
+            @Override
+            public boolean accept(File f) {
+                if (f.isDirectory()) {
+                    return true;
+                }
+                String ext = getFileExtension(f);
+                return ext != null && (ext.equalsIgnoreCase("png") || ext.equalsIgnoreCase("jpg") || ext.equalsIgnoreCase("jpeg"));
+            }
+
+            @Override
+            public String getDescription() {
+                return "Image Files (*.png, *.jpg, *.jpeg)";
+            }
+
+            private String getFileExtension(File f) {
+                String name = f.getName();
+                int lastIndexOf = name.lastIndexOf('.');
+                if (lastIndexOf == -1) {
+                    return null;
+                }
+                return name.substring(lastIndexOf + 1);
+            }
+        });
+
         int result = fileChooser.showOpenDialog(frame);
         if (result == JFileChooser.APPROVE_OPTION) {
             imagePanel.setImage(fileChooser.getSelectedFile().getPath());
