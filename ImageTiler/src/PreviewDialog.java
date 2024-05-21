@@ -49,11 +49,27 @@ class PreviewPanel extends JPanel {
 
             g2d.drawImage(image, x, y, drawWidth, drawHeight, this);
 
-            double pageWidth = 8.27 * 72; // A4 width in points
-            double pageHeight = 11.69 * 72; // A4 height in points
+            double pageWidthPortrait = 8.27 * 72; // A4 width in points (portrait)
+            double pageHeightPortrait = 11.69 * 72; // A4 height in points (portrait)
 
-            int tilesWide = (int) Math.ceil((double) imageWidth / pageWidth);
-            int tilesHigh = (int) Math.ceil((double) imageHeight / pageHeight);
+            double pageWidthLandscape = 11.69 * 72; // A4 width in points (landscape)
+            double pageHeightLandscape = 8.27 * 72; // A4 height in points (landscape)
+
+            int tilesWidePortrait = (int) Math.ceil((double) imageWidth / pageWidthPortrait);
+            int tilesHighPortrait = (int) Math.ceil((double) imageHeight / pageHeightPortrait);
+
+            int tilesWideLandscape = (int) Math.ceil((double) imageWidth / pageWidthLandscape);
+            int tilesHighLandscape = (int) Math.ceil((double) imageHeight / pageHeightLandscape);
+
+            int totalTilesPortrait = tilesWidePortrait * tilesHighPortrait;
+            int totalTilesLandscape = tilesWideLandscape * tilesHighLandscape;
+
+            boolean useLandscape = totalTilesLandscape < totalTilesPortrait;
+
+            double pageWidth = useLandscape ? pageWidthLandscape : pageWidthPortrait;
+            double pageHeight = useLandscape ? pageHeightLandscape : pageHeightPortrait;
+            int tilesWide = useLandscape ? tilesWideLandscape : tilesWidePortrait;
+            int tilesHigh = useLandscape ? tilesHighLandscape : tilesHighPortrait;
 
             double tileWidthScaled = drawWidth / (double) imageWidth * pageWidth;
             double tileHeightScaled = drawHeight / (double) imageHeight * pageHeight;
