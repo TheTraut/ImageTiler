@@ -41,9 +41,12 @@ public class ImagePanel extends JPanel {
     private BufferedImage rotateBufferedImage(BufferedImage img, float angle) {
         int w = img.getWidth();
         int h = img.getHeight();
-        BufferedImage rotated = new BufferedImage(h, w, img.getType());
+        int newWidth = angle == 90 || angle == 270 ? h : w;
+        int newHeight = angle == 90 || angle == 270 ? w : h;
+        BufferedImage rotated = new BufferedImage(newWidth, newHeight, img.getType());
         Graphics2D graphic = rotated.createGraphics();
-        graphic.rotate(Math.toRadians(angle), w / 2.0, h / 2.0);
+        graphic.rotate(Math.toRadians(angle), newWidth / 2.0, newHeight / 2.0);
+        graphic.translate((newWidth - w) / 2.0, (newHeight - h) / 2.0);
         graphic.drawImage(img, 0, 0, null);
         graphic.dispose();
         return rotated;
@@ -62,9 +65,24 @@ public class ImagePanel extends JPanel {
         super.paintComponent(g);
         if (rotatedImage != null) {
             Graphics2D g2d = (Graphics2D) g.create();
-            int x = (getWidth() - rotatedImage.getWidth()) / 2;
-            int y = (getHeight() - rotatedImage.getHeight()) / 2;
-            g2d.drawImage(rotatedImage, x, y, this);
+            int panelWidth = getWidth();
+            int panelHeight = getHeight();
+            int imageWidth = rotatedImage.getWidth();
+            int imageHeight = rotatedImage.getHeight();
+
+            float aspectRatio = (float) imageWidth / imageHeight;
+            int drawWidth = panelWidth;
+            int drawHeight = (int) (panelWidth / aspectRatio);
+
+            if (drawHeight > panelHeight) {
+                drawHeight = panelHeight;
+                drawWidth = (int) (panelHeight * aspectRatio);
+            }
+
+            int x = (panelWidth - drawWidth) / 2;
+            int y = (panelHeight - drawHeight) / 2;
+
+            g2d.drawImage(rotatedImage, x, y, drawWidth, drawHeight, this);
             g2d.dispose();
         }
     }
