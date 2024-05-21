@@ -9,6 +9,7 @@ public class ImagePanel extends JPanel {
     private BufferedImage image;
     private BufferedImage rotatedImage;
     private float rotationAngle = 0;
+    private float scale = 1.0f;
 
     public void setImage(String imagePath) {
         try {
@@ -27,6 +28,11 @@ public class ImagePanel extends JPanel {
 
     public BufferedImage getRotatedImage() {
         return rotatedImage;
+    }
+
+    public void setScale(float scale) {
+        this.scale = scale;
+        repaint();
     }
 
     public void rotateImage() {
@@ -52,14 +58,6 @@ public class ImagePanel extends JPanel {
         return rotated;
     }
 
-    public void previewImage() {
-        // Implement preview functionality
-    }
-
-    public void printImage(float scale) {
-        TilePrinter.printTiledImage(rotatedImage, scale);
-    }
-
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
@@ -67,8 +65,8 @@ public class ImagePanel extends JPanel {
             Graphics2D g2d = (Graphics2D) g.create();
             int panelWidth = getWidth();
             int panelHeight = getHeight();
-            int imageWidth = rotatedImage.getWidth();
-            int imageHeight = rotatedImage.getHeight();
+            int imageWidth = (int) (rotatedImage.getWidth() * scale);
+            int imageHeight = (int) (rotatedImage.getHeight() * scale);
 
             float aspectRatio = (float) imageWidth / imageHeight;
             int drawWidth = panelWidth;
@@ -79,10 +77,37 @@ public class ImagePanel extends JPanel {
                 drawWidth = (int) (panelHeight * aspectRatio);
             }
 
-            int x = (panelWidth - drawWidth) / 2;
-            int y = (panelHeight - drawHeight) / 2;
+            // Define margin
+            int margin = 20;
+            drawWidth -= 2 * margin;
+            drawHeight -= 2 * margin;
+
+            int x = (panelWidth - drawWidth) / 2 + margin;
+            int y = (panelHeight - drawHeight) / 2 + margin;
 
             g2d.drawImage(rotatedImage, x, y, drawWidth, drawHeight, this);
+
+            double pageWidth = 8.27 * 72; // A4 width in points (portrait)
+            double pageHeight = 11.69 * 72; // A4 height in points (portrait)
+
+            TileCalculator.TilingResult tilingResult = TileCalculator.calculateOptimalTiling(imageWidth, imageHeight, pageWidth, pageHeight);
+
+            double tileWidthScaled = drawWidth / (double) imageWidth * tilingResult.tileWidth;
+            double tileHeightScaled = drawHeight / (double) imageHeight * tilingResult.tileHeight;
+
+            g2d.setColor(Color.BLACK);
+
+            for (int row = 0; row < tilingResult.tilesHigh; row++) {
+                for (int col = 0; col < tilingResult.tilesWide; col++) {
+                    int tileX = x + (int) (col * tileWidthScaled);
+                    int tileY = y + (int) (row * tileHeightScaled);
+                    int width = (int) Math.min(tileWidthScaled, drawWidth - col * tileWidthScaled);
+                    int height = (int) Math.min(tileHeightScaled, drawHeight - row * tileHeightScaled);
+
+                    g2d.drawRect(tileX, tileY, width, height);
+                }
+            }
+
             g2d.dispose();
         }
     }

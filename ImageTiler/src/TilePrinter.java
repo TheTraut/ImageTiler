@@ -1,8 +1,9 @@
 import java.awt.*;
+import java.awt.image.BufferedImage;
 import java.awt.print.*;
 
 public class TilePrinter {
-    public static void printTiledImage(Image image, float scale) {
+    public static void printTiledImage(BufferedImage image, float scale, boolean isRotated) {
         PrinterJob job = PrinterJob.getPrinterJob();
         job.setPrintable(new Printable() {
             @Override
@@ -11,8 +12,8 @@ public class TilePrinter {
                 g2d.translate(pageFormat.getImageableX(), pageFormat.getImageableY());
                 double pageWidth = pageFormat.getImageableWidth();
                 double pageHeight = pageFormat.getImageableHeight();
-                int scaledWidth = (int) (image.getWidth(null) * scale);
-                int scaledHeight = (int) (image.getHeight(null) * scale);
+                int scaledWidth = (int) (image.getWidth() * scale);
+                int scaledHeight = (int) (image.getHeight() * scale);
 
                 TileCalculator.TilingResult tilingResult = TileCalculator.calculateOptimalTiling(scaledWidth, scaledHeight, pageWidth, pageHeight);
 

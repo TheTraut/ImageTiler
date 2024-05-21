@@ -8,6 +8,7 @@ public class Main {
     private JTextField scaleField;
     private JTextField originalSizeField;
     private JTextField newSizeField;
+    private boolean isRotated = false;
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> new Main().createAndShowGUI());
@@ -29,7 +30,7 @@ public class Main {
         selectImageButton.addActionListener(e -> selectImage());
 
         JButton rotateImageButton = new JButton("Rotate Image");
-        rotateImageButton.addActionListener(e -> imagePanel.rotateImage());
+        rotateImageButton.addActionListener(e -> rotateImage());
 
         scaleField = new JTextField("1.0");
         originalSizeField = new JTextField();
@@ -38,11 +39,8 @@ public class Main {
         JButton calculateScaleButton = new JButton("Calculate Scale");
         calculateScaleButton.addActionListener(e -> calculateScale());
 
-        JButton previewButton = new JButton("Preview");
-        previewButton.addActionListener(e -> previewImage());
-
         JButton printButton = new JButton("Print Image");
-        printButton.addActionListener(e -> imagePanel.printImage(Float.parseFloat(scaleField.getText())));
+        printButton.addActionListener(e -> printImage());
 
         controlPanel.add(new JLabel("Scale:"));
         controlPanel.add(scaleField);
@@ -53,7 +51,6 @@ public class Main {
         controlPanel.add(calculateScaleButton);
         controlPanel.add(selectImageButton);
         controlPanel.add(rotateImageButton);
-        controlPanel.add(previewButton);
         controlPanel.add(printButton);
 
         frame.add(controlPanel, BorderLayout.SOUTH);
@@ -90,7 +87,15 @@ public class Main {
         int result = fileChooser.showOpenDialog(frame);
         if (result == JFileChooser.APPROVE_OPTION) {
             imagePanel.setImage(fileChooser.getSelectedFile().getPath());
+            isRotated = false;
+            imagePanel.repaint();
         }
+    }
+
+    private void rotateImage() {
+        imagePanel.rotateImage();
+        isRotated = !isRotated;
+        imagePanel.repaint();
     }
 
     private void calculateScale() {
@@ -99,14 +104,15 @@ public class Main {
         if (!originalSize.isEmpty() && !newSize.isEmpty()) {
             float scale = ScaleCalculator.calculateScale(Float.parseFloat(originalSize), Float.parseFloat(newSize));
             scaleField.setText(String.format("%.2f", scale));
+            imagePanel.setScale(scale);
+            imagePanel.repaint();
         }
     }
 
-    private void previewImage() {
+    private void printImage() {
         if (imagePanel.getImage() != null) {
             float scale = Float.parseFloat(scaleField.getText());
-            PreviewDialog previewDialog = new PreviewDialog(frame, imagePanel.getRotatedImage(), scale);
-            previewDialog.setVisible(true);
+            TilePrinter.printTiledImage(imagePanel.getRotatedImage(), scale, isRotated);
         }
     }
 }
