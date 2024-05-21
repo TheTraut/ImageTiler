@@ -55,14 +55,17 @@ class PreviewPanel extends JPanel {
             int tilesWide = (int) Math.ceil((double) imageWidth / pageWidth);
             int tilesHigh = (int) Math.ceil((double) imageHeight / pageHeight);
 
+            double tileWidthScaled = drawWidth / (double) imageWidth * pageWidth;
+            double tileHeightScaled = drawHeight / (double) imageHeight * pageHeight;
+
             g2d.setColor(Color.BLACK);
 
             for (int row = 0; row < tilesHigh; row++) {
                 for (int col = 0; col < tilesWide; col++) {
-                    int tileX = x + (int) (col * pageWidth * drawWidth / imageWidth);
-                    int tileY = y + (int) (row * pageHeight * drawHeight / imageHeight);
-                    int width = (int) Math.min(pageWidth * drawWidth / imageWidth, drawWidth - col * pageWidth * drawWidth / imageWidth);
-                    int height = (int) Math.min(pageHeight * drawHeight / imageHeight, drawHeight - row * pageHeight * drawHeight / imageHeight);
+                    int tileX = x + (int) (col * tileWidthScaled);
+                    int tileY = y + (int) (row * tileHeightScaled);
+                    int width = (int) Math.min(tileWidthScaled, drawWidth - col * tileWidthScaled);
+                    int height = (int) Math.min(tileHeightScaled, drawHeight - row * tileHeightScaled);
 
                     g2d.drawRect(tileX, tileY, width, height);
                 }
