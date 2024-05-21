@@ -24,7 +24,7 @@ public class Main {
         frame.add(imagePanel, BorderLayout.CENTER);
 
         JPanel controlPanel = new JPanel();
-        controlPanel.setLayout(new GridLayout(5, 2));
+        controlPanel.setLayout(new GridLayout(6, 2));
 
         JButton selectImageButton = new JButton("Select Image");
         selectImageButton.addActionListener(e -> selectImage());
@@ -42,6 +42,9 @@ public class Main {
         JButton printButton = new JButton("Print Image");
         printButton.addActionListener(e -> printImage());
 
+        JButton savePdfButton = new JButton("Save to PDF");
+        savePdfButton.addActionListener(e -> saveToPDF());
+
         controlPanel.add(new JLabel("Scale:"));
         controlPanel.add(scaleField);
         controlPanel.add(new JLabel("Original Size:"));
@@ -52,6 +55,7 @@ public class Main {
         controlPanel.add(selectImageButton);
         controlPanel.add(rotateImageButton);
         controlPanel.add(printButton);
+        controlPanel.add(savePdfButton);
 
         frame.add(controlPanel, BorderLayout.SOUTH);
         frame.setVisible(true);
@@ -113,6 +117,13 @@ public class Main {
         if (imagePanel.getImage() != null) {
             float scale = Float.parseFloat(scaleField.getText());
             TilePrinter.printTiledImage(imagePanel.getRotatedImage(), scale, isRotated);
+        }
+    }
+
+    private void saveToPDF() {
+        if (imagePanel.getImage() != null) {
+            float scale = Float.parseFloat(scaleField.getText());
+            TilePrinter.saveTiledImageToPDF(imagePanel.getRotatedImage(), scale, isRotated);
         }
     }
 }
