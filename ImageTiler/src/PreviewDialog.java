@@ -44,8 +44,17 @@ class PreviewPanel extends JPanel {
                 drawWidth = (int) (panelHeight * aspectRatio);
             }
 
+            // Define margin
+            int margin = 20;
+            drawWidth -= 2 * margin;
+            drawHeight -= 2 * margin;
+
             int x = (panelWidth - drawWidth) / 2;
             int y = (panelHeight - drawHeight) / 2;
+
+            // Adjust x and y to include margins
+            x = Math.max(x, margin);
+            y = Math.max(y, margin);
 
             g2d.drawImage(image, x, y, drawWidth, drawHeight, this);
 
