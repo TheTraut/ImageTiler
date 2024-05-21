@@ -14,15 +14,14 @@ public class TilePrinter {
                 int scaledWidth = (int) (image.getWidth(null) * scale);
                 int scaledHeight = (int) (image.getHeight(null) * scale);
 
-                int tilesWide = (int) Math.ceil((double) scaledWidth / pageWidth);
-                int tilesHigh = (int) Math.ceil((double) scaledHeight / pageHeight);
+                TileCalculator.TilingResult tilingResult = TileCalculator.calculateOptimalTiling(scaledWidth, scaledHeight, pageWidth, pageHeight);
 
-                if (pageIndex >= tilesWide * tilesHigh) {
+                if (pageIndex >= tilingResult.tilesWide * tilingResult.tilesHigh) {
                     return NO_SUCH_PAGE;
                 }
 
-                int row = pageIndex / tilesWide;
-                int col = pageIndex % tilesWide;
+                int row = pageIndex / tilingResult.tilesWide;
+                int col = pageIndex % tilingResult.tilesWide;
 
                 int x = -col * (int) pageWidth;
                 int y = -row * (int) pageHeight;
