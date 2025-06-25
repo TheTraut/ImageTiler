@@ -1,6 +1,8 @@
 import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
@@ -9,12 +11,42 @@ public class ImagePanel extends JPanel {
     private BufferedImage image;
     private BufferedImage rotatedImage;
     private float rotationAngle = 0;
+    private float scale = 1.0f;
+    
+    // Cache for tile analysis to avoid recalculating every paint
+    private java.util.List<TileCalculator.TileInfo> cachedNonBlankTiles;
+    private TileCalculator.TilingResult cachedTilingResult;
+    private float cachedScale = -1;
+    private BufferedImage cachedAnalysisImage;
+    
+    // Manual tile selection
+    private java.util.Set<String> manuallyExcludedTiles = new java.util.HashSet<>();
+    private java.util.Set<String> manuallyIncludedTiles = new java.util.HashSet<>();
+    private boolean manualSelectionMode = false;
+    
+    // For handling mouse clicks on tiles
+    private TileCalculator.TilingResult currentTilingResult;
+    private int lastDrawX, lastDrawY, lastDrawWidth, lastDrawHeight;
+    private int lastImageWidth, lastImageHeight;
+    
+    public ImagePanel() {
+        super();
+        
+        // Add mouse listener for tile selection
+        addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                handleTileClick(e);
+            }
+        });
+    }
 
     public void setImage(String imagePath) {
         try {
             image = ImageIO.read(new File(imagePath));
             rotatedImage = image;
             rotationAngle = 0;
+            invalidateCache(); // Clear cache when new image is loaded
             repaint();
         } catch (IOException e) {
             e.printStackTrace();
@@ -29,12 +61,19 @@ public class ImagePanel extends JPanel {
         return rotatedImage;
     }
 
+    public void setScale(float scale) {
+        this.scale = scale;
+        invalidateCache(); // Clear cache when scale changes
+        repaint();
+    }
+
     public void rotateImage() {
         rotationAngle += 90;
         if (rotationAngle == 360) {
             rotationAngle = 0;
         }
         rotatedImage = rotateBufferedImage(image, rotationAngle);
+        invalidateCache(); // Clear cache when image is rotated
         repaint();
     }
 
@@ -52,14 +91,6 @@ public class ImagePanel extends JPanel {
         return rotated;
     }
 
-    public void previewImage() {
-        // Implement preview functionality
-    }
-
-    public void printImage(float scale) {
-        TilePrinter.printTiledImage(rotatedImage, scale);
-    }
-
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
@@ -67,8 +98,8 @@ public class ImagePanel extends JPanel {
             Graphics2D g2d = (Graphics2D) g.create();
             int panelWidth = getWidth();
             int panelHeight = getHeight();
-            int imageWidth = rotatedImage.getWidth();
-            int imageHeight = rotatedImage.getHeight();
+            int imageWidth = (int) (rotatedImage.getWidth() * scale);
+            int imageHeight = (int) (rotatedImage.getHeight() * scale);
 
             float aspectRatio = (float) imageWidth / imageHeight;
             int drawWidth = panelWidth;
@@ -79,11 +110,238 @@ public class ImagePanel extends JPanel {
                 drawWidth = (int) (panelHeight * aspectRatio);
             }
 
-            int x = (panelWidth - drawWidth) / 2;
-            int y = (panelHeight - drawHeight) / 2;
+            // Define margin
+            int margin = 20;
+            drawWidth -= 2 * margin;
+            drawHeight -= 2 * margin;
+
+            int x = (panelWidth - drawWidth) / 2 + margin;
+            int y = (panelHeight - drawHeight) / 2 + margin;
 
             g2d.drawImage(rotatedImage, x, y, drawWidth, drawHeight, this);
+
+            double pageWidth = 8.27 * 72; // A4 width in points (portrait)
+            double pageHeight = 11.69 * 72; // A4 height in points (portrait)
+
+            TileCalculator.TilingResult tilingResult = TileCalculator.calculateOptimalTiling(imageWidth, imageHeight, pageWidth, pageHeight);
+
+            double tileWidthScaled = drawWidth / (double) imageWidth * tilingResult.tileWidth;
+            double tileHeightScaled = drawHeight / (double) imageHeight * tilingResult.tileHeight;
+
+            // Get non-blank tiles using cached analysis or recalculate if needed
+            java.util.List<TileCalculator.TileInfo> nonBlankTiles = getCachedNonBlankTiles(tilingResult, rotatedImage);
+            java.util.Set<String> nonBlankPositions = new java.util.HashSet<>();
+            for (TileCalculator.TileInfo tile : nonBlankTiles) {
+                nonBlankPositions.add(tile.col + "," + tile.row);
+            }
+
+            // Draw tile grid
+            g2d.setStroke(new BasicStroke(2));
+
+            for (int row = 0; row < tilingResult.tilesHigh; row++) {
+                for (int col = 0; col < tilingResult.tilesWide; col++) {
+                    int tileX = x + (int) (col * tileWidthScaled);
+                    int tileY = y + (int) (row * tileHeightScaled);
+                    int width = (int) Math.min(tileWidthScaled, drawWidth - col * tileWidthScaled);
+                    int height = (int) Math.min(tileHeightScaled, drawHeight - row * tileHeightScaled);
+
+                    boolean isNonBlank = nonBlankPositions.contains(col + "," + row);
+                    
+                    // Draw semi-transparent overlay for different tile states
+                    if (manuallyExcludedTiles.contains(col + "," + row)) {
+                        // Dark gray semi-transparent overlay for excluded tiles
+                        g2d.setColor(new Color(64, 64, 64, 120)); // Semi-transparent dark gray
+                        g2d.fillRect(tileX, tileY, width, height);
+                    } else if (isNonBlank) {
+                        // Light red tint for tiles that will be printed
+                        g2d.setColor(new Color(220, 20, 60, 60)); // Semi-transparent red
+                        g2d.fillRect(tileX, tileY, width, height);
+                    }
+
+                    // Draw border around tile
+                    if (manuallyExcludedTiles.contains(col + "," + row)) {
+                        g2d.setColor(Color.RED); // Red border for excluded
+                        g2d.setStroke(new BasicStroke(3));
+                    } else if (isNonBlank) {
+                        g2d.setColor(new Color(0, 150, 0)); // Green border for included
+                        g2d.setStroke(new BasicStroke(2));
+                    } else {
+                        g2d.setColor(Color.GRAY); // Gray border for blank
+                        g2d.setStroke(new BasicStroke(1));
+                    }
+                    g2d.drawRect(tileX, tileY, width, height);
+                    
+                    // Add tile numbers
+                    g2d.setColor(Color.BLACK);
+                    g2d.setFont(new Font("Arial", Font.BOLD, 12));
+                    int tileNum = row * tilingResult.tilesWide + col + 1;
+                    g2d.drawString(String.valueOf(tileNum), tileX + width / 2 - 6, tileY + height / 2 + 6);
+                }
+            }
+            
+            // Calculate selected tiles count
+            int selectedTiles = 0;
+            int excludedNonBlankTiles = 0;
+            for (TileCalculator.TileInfo tile : nonBlankTiles) {
+                String tileKey = tile.col + "," + tile.row;
+                if (!manuallyExcludedTiles.contains(tileKey)) {
+                    selectedTiles++;
+                } else {
+                    excludedNonBlankTiles++;
+                }
+            }
+            
+            // Draw information overlay
+            g2d.setColor(new Color(0, 0, 0, 140)); // Semi-transparent black
+            g2d.fillRect(10, 10, 320, 180);
+            g2d.setColor(Color.WHITE);
+            g2d.setFont(new Font("Arial", Font.BOLD, 14));
+            g2d.drawString("Tiling Information:", 20, 30);
+            g2d.setFont(new Font("Arial", Font.PLAIN, 12));
+            g2d.drawString("Pages to print: " + selectedTiles, 20, 50);
+            g2d.drawString("Grid size: " + tilingResult.tilesWide + " × " + tilingResult.tilesHigh, 20, 70);
+            
+            int totalBlankPages = tilingResult.tilesWide * tilingResult.tilesHigh - selectedTiles;
+            g2d.setColor(new Color(144, 238, 144)); // Light green
+            g2d.drawString("Paper saved: " + totalBlankPages + " pages!", 20, 90);
+            
+            if (excludedNonBlankTiles > 0) {
+                g2d.setColor(Color.YELLOW);
+                g2d.drawString("Manually excluded: " + excludedNonBlankTiles + " tiles", 20, 110);
+            }
+            
+            g2d.setColor(Color.WHITE);
+            g2d.drawString("Page Size: " + String.format("%.1f × %.1f inches", 
+                tilingResult.tileWidth / 72.0, tilingResult.tileHeight / 72.0), 20, 130);
+            
+            // Show scale information if scaled
+            if (scale != 1.0f) {
+                g2d.drawString("Scale: " + String.format("%.2fx", scale), 20, 150);
+            }
+            
+            // Legend with better visual indicators
+            g2d.setFont(new Font("Arial", Font.BOLD, 11));
+            g2d.setColor(new Color(0, 150, 0)); // Green border
+            g2d.drawString("■ Will be printed (green border)", 20, 170);
+            g2d.setColor(Color.RED); // Red border
+            g2d.drawString("■ Excluded (red border - click to toggle)", 20, 185);
+            g2d.setColor(Color.GRAY);
+            g2d.drawString("■ Blank (gray border - auto-skipped)", 20, 200);
+
+            // Save current drawing parameters for mouse handling
+            currentTilingResult = tilingResult;
+            lastDrawX = x;
+            lastDrawY = y;
+            lastDrawWidth = drawWidth;
+            lastDrawHeight = drawHeight;
+            lastImageWidth = imageWidth;
+            lastImageHeight = imageHeight;
+
             g2d.dispose();
         }
+    }
+    
+    /**
+     * Invalidates the tile analysis cache
+     */
+    private void invalidateCache() {
+        cachedNonBlankTiles = null;
+        cachedTilingResult = null;
+        cachedScale = -1;
+        cachedAnalysisImage = null;
+    }
+    
+    /**
+     * Gets non-blank tiles using cache or recalculates if needed
+     */
+    private java.util.List<TileCalculator.TileInfo> getCachedNonBlankTiles(TileCalculator.TilingResult tilingResult, BufferedImage currentImage) {
+        // Check if we need to recalculate
+        boolean needsRecalculation = cachedNonBlankTiles == null ||
+                                      cachedScale != scale ||
+                                      cachedAnalysisImage != currentImage ||
+                                      !tilingResultsEqual(cachedTilingResult, tilingResult);
+        
+        if (needsRecalculation) {
+            // Recalculate and cache
+            cachedNonBlankTiles = TileCalculator.getNonBlankTiles(tilingResult, currentImage);
+            cachedTilingResult = tilingResult;
+            cachedScale = scale;
+            cachedAnalysisImage = currentImage;
+        }
+        
+        return cachedNonBlankTiles;
+    }
+    
+    /**
+     * Compares two tiling results for equality
+     */
+    private boolean tilingResultsEqual(TileCalculator.TilingResult a, TileCalculator.TilingResult b) {
+        if (a == null || b == null) return false;
+        return a.tilesWide == b.tilesWide &&
+               a.tilesHigh == b.tilesHigh &&
+               Math.abs(a.tileWidth - b.tileWidth) < 0.01 &&
+               Math.abs(a.tileHeight - b.tileHeight) < 0.01 &&
+               a.imageWidth == b.imageWidth &&
+               a.imageHeight == b.imageHeight;
+    }
+    
+    /**
+     * Handles mouse clicks on tiles for manual selection
+     */
+    private void handleTileClick(MouseEvent e) {
+        if (currentTilingResult == null) return;
+        
+        int clickX = e.getX();
+        int clickY = e.getY();
+        
+        double tileWidthScaled = (double) lastDrawWidth / currentTilingResult.tilesWide;
+        double tileHeightScaled = (double) lastDrawHeight / currentTilingResult.tilesHigh;
+
+        int col = (int) ((clickX - lastDrawX) / tileWidthScaled);
+        int row = (int) ((clickY - lastDrawY) / tileHeightScaled);
+
+        // Check if click is within bounds
+        if (col >= 0 && col < currentTilingResult.tilesWide && row >= 0 && row < currentTilingResult.tilesHigh) {
+            String tileKey = col + "," + row;
+            if (manuallyExcludedTiles.contains(tileKey)) {
+                manuallyExcludedTiles.remove(tileKey);
+            } else {
+                manuallyExcludedTiles.add(tileKey);
+            }
+            repaint();
+        }
+    }
+    
+    /**
+     * Gets the set of manually excluded tiles
+     */
+    public java.util.Set<String> getManuallyExcludedTiles() {
+        return manuallyExcludedTiles;
+    }
+    
+    /**
+     * Clears all manual tile selections
+     */
+    public void clearManualSelections() {
+        manuallyExcludedTiles.clear();
+        manuallyIncludedTiles.clear();
+        repaint();
+    }
+    
+    /**
+     * Gets the final list of tiles to print/save (excluding manually excluded ones)
+     */
+    public java.util.List<TileCalculator.TileInfo> getSelectedTiles(TileCalculator.TilingResult tilingResult, BufferedImage image) {
+        java.util.List<TileCalculator.TileInfo> allNonBlankTiles = TileCalculator.getNonBlankTiles(tilingResult, image);
+        java.util.List<TileCalculator.TileInfo> selectedTiles = new java.util.ArrayList<>();
+        
+        for (TileCalculator.TileInfo tile : allNonBlankTiles) {
+            String tileKey = tile.col + "," + tile.row;
+            if (!manuallyExcludedTiles.contains(tileKey)) {
+                selectedTiles.add(tile);
+            }
+        }
+        
+        return selectedTiles;
     }
 }
