@@ -12,6 +12,7 @@ public class ImagePanel extends JPanel {
     private BufferedImage rotatedImage;
     private float rotationAngle = 0;
     private float scale = 1.0f;
+    private Settings settings;
     
     // Cache for tile analysis to avoid recalculating every paint
     private java.util.List<TileCalculator.TileInfo> cachedNonBlankTiles;
@@ -31,6 +32,7 @@ public class ImagePanel extends JPanel {
     
     public ImagePanel() {
         super();
+        this.settings = Settings.getInstance();
         
         // Add mouse listener for tile selection
         addMouseListener(new MouseAdapter() {
@@ -135,8 +137,21 @@ public class ImagePanel extends JPanel {
                 nonBlankPositions.add(tile.col + "," + tile.row);
             }
 
-            // Draw tile grid
-            g2d.setStroke(new BasicStroke(2));
+            // Draw tile grid only if enabled in settings
+            if (!settings.isShowGrid()) {
+                // Store current drawing parameters for mouse handling even if grid is hidden
+                currentTilingResult = tilingResult;
+                lastDrawX = x;
+                lastDrawY = y;
+                lastDrawWidth = drawWidth;
+                lastDrawHeight = drawHeight;
+                lastImageWidth = imageWidth;
+                lastImageHeight = imageHeight;
+                g2d.dispose();
+                return;
+            }
+            
+            g2d.setStroke(new BasicStroke(settings.getGridLineWidth()));
 
             for (int row = 0; row < tilingResult.tilesHigh; row++) {
                 for (int col = 0; col < tilingResult.tilesWide; col++) {
@@ -149,33 +164,37 @@ public class ImagePanel extends JPanel {
                     
                     // Draw semi-transparent overlay for different tile states
                     if (manuallyExcludedTiles.contains(col + "," + row)) {
-                        // Dark gray semi-transparent overlay for excluded tiles
-                        g2d.setColor(new Color(64, 64, 64, 120)); // Semi-transparent dark gray
+                        // Semi-transparent overlay for excluded tiles using settings color
+                        Color excludedColor = settings.getExcludedColor();
+                        g2d.setColor(new Color(excludedColor.getRed(), excludedColor.getGreen(), excludedColor.getBlue(), 120));
                         g2d.fillRect(tileX, tileY, width, height);
                     } else if (isNonBlank) {
-                        // Light red tint for tiles that will be printed
-                        g2d.setColor(new Color(220, 20, 60, 60)); // Semi-transparent red
+                        // Light tint for tiles that will be printed using settings grid color
+                        Color gridColor = settings.getGridColor();
+                        g2d.setColor(new Color(gridColor.getRed(), gridColor.getGreen(), gridColor.getBlue(), 60));
                         g2d.fillRect(tileX, tileY, width, height);
                     }
 
                     // Draw border around tile
                     if (manuallyExcludedTiles.contains(col + "," + row)) {
-                        g2d.setColor(Color.RED); // Red border for excluded
-                        g2d.setStroke(new BasicStroke(3));
+                        g2d.setColor(settings.getExcludedColor()); // Use settings color for excluded
+                        g2d.setStroke(new BasicStroke(settings.getGridLineWidth() + 1));
                     } else if (isNonBlank) {
-                        g2d.setColor(new Color(0, 150, 0)); // Green border for included
-                        g2d.setStroke(new BasicStroke(2));
+                        g2d.setColor(settings.getGridColor()); // Use settings color for included
+                        g2d.setStroke(new BasicStroke(settings.getGridLineWidth()));
                     } else {
                         g2d.setColor(Color.GRAY); // Gray border for blank
                         g2d.setStroke(new BasicStroke(1));
                     }
                     g2d.drawRect(tileX, tileY, width, height);
                     
-                    // Add tile numbers
-                    g2d.setColor(Color.BLACK);
-                    g2d.setFont(new Font("Arial", Font.BOLD, 12));
-                    int tileNum = row * tilingResult.tilesWide + col + 1;
-                    g2d.drawString(String.valueOf(tileNum), tileX + width / 2 - 6, tileY + height / 2 + 6);
+                    // Add tile numbers if enabled in settings
+                    if (settings.isShowTileNumbers()) {
+                        g2d.setColor(Color.BLACK);
+                        g2d.setFont(new Font("Arial", Font.BOLD, 12));
+                        int tileNum = row * tilingResult.tilesWide + col + 1;
+                        g2d.drawString(String.valueOf(tileNum), tileX + width / 2 - 6, tileY + height / 2 + 6);
+                    }
                 }
             }
             
@@ -219,12 +238,12 @@ public class ImagePanel extends JPanel {
                 g2d.drawString("Scale: " + String.format("%.2fx", scale), 20, 150);
             }
             
-            // Legend with better visual indicators
+            // Legend with better visual indicators using settings colors
             g2d.setFont(new Font("Arial", Font.BOLD, 11));
-            g2d.setColor(new Color(0, 150, 0)); // Green border
-            g2d.drawString("■ Will be printed (green border)", 20, 170);
-            g2d.setColor(Color.RED); // Red border
-            g2d.drawString("■ Excluded (red border - click to toggle)", 20, 185);
+            g2d.setColor(settings.getGridColor()); // Use settings grid color
+            g2d.drawString("■ Will be printed (custom color)", 20, 170);
+            g2d.setColor(settings.getExcludedColor()); // Use settings excluded color
+            g2d.drawString("■ Excluded (custom color - click to toggle)", 20, 185);
             g2d.setColor(Color.GRAY);
             g2d.drawString("■ Blank (gray border - auto-skipped)", 20, 200);
 
@@ -343,5 +362,12 @@ public class ImagePanel extends JPanel {
         }
         
         return selectedTiles;
+    }
+    
+    /**
+     * Refreshes the display to reflect current settings
+     */
+    public void refreshDisplay() {
+        repaint();
     }
 }

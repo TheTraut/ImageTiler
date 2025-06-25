@@ -24,8 +24,17 @@ public class Main {
         frame.add(imagePanel, BorderLayout.CENTER);
 
         JPanel controlPanel = new JPanel();
-        controlPanel.setLayout(new GridLayout(8, 2, 5, 5));
+        controlPanel.setLayout(new GridLayout(9, 2, 5, 5));
         controlPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+        JButton settingsButton = new JButton("Settings");
+        settingsButton.addActionListener(e -> {
+            SettingsDialog dialog = new SettingsDialog(frame);
+            dialog.setVisible(true);
+            if (dialog.wereSettingsChanged()) {
+                imagePanel.refreshDisplay();
+            }
+        });
 
         JButton selectImageButton = new JButton("Select Image");
         selectImageButton.addActionListener(e -> selectImage());
@@ -63,6 +72,8 @@ public class Main {
         controlPanel.add(calculateScaleButton);
         controlPanel.add(new JLabel("Manual Selection:"));
         controlPanel.add(clearSelectionsButton);
+        controlPanel.add(new JLabel("Settings:"));
+        controlPanel.add(settingsButton);
         controlPanel.add(printButton);
         controlPanel.add(savePdfButton);
 
