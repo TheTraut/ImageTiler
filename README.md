@@ -1,16 +1,25 @@
 # ImageTiler
 
-A Java desktop application that automatically divides large images into printable tiles that fit on standard paper sizes (A4). Perfect for printing posters, technical drawings, or artwork on regular-sized printer paper.
+A powerful Java desktop application that automatically divides large images into printable tiles that fit on standard paper sizes. Perfect for printing posters, technical drawings, or artwork on regular-sized printer paper with advanced customization options.
 
-## Features
+## ✨ Features
 
-- **Smart Tiling**: Automatically calculates optimal tile layout (portrait vs landscape) to minimize total pages
-- **Image Scaling**: Scale images up or down before tiling
-- **Image Rotation**: Rotate images in 90-degree increments
-- **Live Preview**: Visual preview showing tile grid with numbered sections
-- **Print Support**: Direct printing to any installed printer
-- **PDF Export**: Save tiled output as PDF with user-selectable location
-- **Multiple Formats**: Supports PNG, JPG, and JPEG image files
+### Core Functionality
+- **🧩 Smart Tiling**: Automatically calculates optimal tile layout (portrait vs landscape) to minimize total pages
+- **📏 Image Scaling**: Scale images up or down before tiling with precise control
+- **🔄 Image Rotation**: Rotate images in 90-degree increments
+- **👀 Live Preview**: Visual preview showing customizable tile grid with optional numbering
+- **🖨️ Print Support**: Direct printing to any installed printer
+- **📄 PDF Export**: Save tiled output as PDF with user-selectable location
+- **🖼️ Multiple Formats**: Supports PNG, JPG, and JPEG image files
+
+### Advanced Features
+- **⚙️ Comprehensive Settings System**: Customize colors, grid appearance, and behavior
+- **🎨 Visual Customization**: Custom colors for grid lines and excluded tiles
+- **🎯 Manual Tile Selection**: Click tiles to exclude them from printing
+- **📊 Smart Analysis**: Automatically excludes blank tiles to save paper
+- **💾 Persistent Preferences**: Settings automatically save between sessions
+- **🔧 Multiple Paper Sizes**: Support for A4, A3, Letter, Legal, and Tabloid sizes
 
 ## How to Use
 
@@ -18,8 +27,10 @@ A Java desktop application that automatically divides large images into printabl
 1. **Select Image**: Click "Select Image" to choose your image file
 2. **Adjust Scale**: (Optional) Enter original and new sizes to calculate scale, or manually set scale
 3. **Rotate**: (Optional) Click "Rotate Image" to rotate in 90° increments
-4. **Preview**: The main panel shows your image with red tile grid overlay and information
-5. **Export**: Choose "Print Image" for direct printing or "Save to PDF" for PDF export
+4. **Customize**: (Optional) Click "Settings" to customize colors, grid appearance, and preferences
+5. **Manual Selection**: (Optional) Click individual tiles in the preview to exclude them from printing
+6. **Preview**: The main panel shows your image with customizable tile grid overlay and information
+7. **Export**: Choose "Print Image" for direct printing or "Save to PDF" for PDF export
 
 ### Scale Calculation
 - Enter the **original size** (current size of your image in inches)
@@ -27,13 +38,47 @@ A Java desktop application that automatically divides large images into printabl
 - Click "Calculate Scale" to automatically set the scale factor
 - Or manually enter a scale value (1.0 = original size, 2.0 = double size, 0.5 = half size)
 
+### Settings System
+Click the **Settings** button to access comprehensive customization options:
+
+#### Default Directories
+- **Image Directory**: Set your preferred folder for selecting images
+- **PDF Directory**: Set your preferred folder for saving PDF files
+- Browse buttons available for easy folder selection
+
+#### Display Settings
+- **Paper Size**: Choose from A4, A3, Letter, Legal, or Tabloid
+- **Default Scale**: Set your preferred starting scale factor
+- **Show Grid**: Toggle tile grid visibility on/off
+- **Show Tile Numbers**: Toggle tile numbering display
+
+#### Visual Customization
+- **Grid Color**: Customize the color of tile borders and overlays
+- **Excluded Tile Color**: Set the color for manually excluded tiles
+- **Grid Line Width**: Adjust the thickness of tile borders (1-10 pixels)
+
+#### General Preferences
+- **Auto-save Settings**: Automatically save changes when modified
+- **Confirm Overwrites**: Show confirmation when overwriting files
+
+*All settings are automatically saved and restored when you restart the application.*
+
+### Manual Tile Selection
+- **Click any tile** in the preview to exclude it from printing
+- **Excluded tiles** appear with your custom excluded color
+- **Click again** to include the tile back
+- **Clear Selections** button removes all manual exclusions
+- Perfect for removing unwanted border areas or blank sections
+
 ### Preview Information
 The preview panel displays:
 - **Total Pages**: Number of sheets needed
 - **Grid Layout**: Width × Height arrangement (e.g., "3 × 2" means 3 pages wide, 2 pages tall)
 - **Page Size**: Actual dimensions of each printed page
 - **Scale Factor**: Current scaling applied to the image
-- **Tile Numbers**: Each tile is numbered for easy assembly
+- **Paper Saved**: How many blank pages are automatically excluded
+- **Manual Exclusions**: Count of tiles you've manually excluded
+- **Color-coded Legend**: Shows your current custom colors
 
 ## Technical Details
 
@@ -48,25 +93,45 @@ The preview panel displays:
 - Java 8 or higher
 - Apache PDFBox library (included in `lib/` directory)
 
-### Running the Application
+### Easy Build & Run (Recommended)
+
+#### Using the Build Script
 ```bash
 cd ImageTiler
-javac -cp "lib/*:." src/*.java
-java -cp "lib/*:src:." Main
+./build.sh
 ```
 
-### macOS/Linux
+#### Using the Compile Script (JAR Creation)
 ```bash
 cd ImageTiler
-javac -cp "lib/*:." src/*.java
-java -cp "lib/*:src:." Main
+./compile.sh
+```
+This creates `ImageTiler.jar` which can be:
+- Run with `java -jar ImageTiler.jar`
+- Double-clicked to run (if Java is properly configured)
+- Distributed as a standalone application
+
+### Manual Building
+
+#### macOS/Linux
+```bash
+cd ImageTiler
+javac -cp "lib/*" -d build src/*.java
+java -cp "lib/*:build" Main
 ```
 
-### Windows
+#### Windows
 ```cmd
 cd ImageTiler
-javac -cp "lib/*;." src/*.java
-java -cp "lib/*;src;." Main
+javac -cp "lib/*" -d build src/*.java
+java -cp "lib/*;build" Main
+```
+
+### Creating Executable JAR
+```bash
+cd ImageTiler
+javac -cp "lib/*" -d build src/*.java
+jar cfm ImageTiler.jar MANIFEST.MF -C build . -C lib .
 ```
 
 ## Project Structure
@@ -78,14 +143,22 @@ ImageTiler/
 │   ├── ImagePanel.java     # Custom panel for image display with tile overlay
 │   ├── TileCalculator.java # Logic for optimal tile layout calculation
 │   ├── TilePrinter.java    # Handles printing and PDF generation
-│   └── ScaleCalculator.java # Simple scale calculation utility
+│   ├── ScaleCalculator.java # Simple scale calculation utility
+│   ├── Settings.java       # Settings management and persistence
+│   └── SettingsDialog.java # Settings configuration dialog
 ├── lib/
 │   └── pdfbox-app-3.0.2.jar # Apache PDFBox library
-└── README.md
+├── build/                  # Compiled class files (auto-generated)
+├── build.sh               # Quick build and run script
+├── compile.sh             # JAR compilation script
+├── MANIFEST.MF            # JAR manifest file
+├── .gitignore             # Git ignore configuration
+└── README.md              # This documentation
 ```
 
 ## Recent Improvements
 
+### Core Features
 - ✅ Fixed PDF generation coordinate system issues
 - ✅ Added file chooser for PDF save location
 - ✅ Improved error handling and user feedback
@@ -93,6 +166,17 @@ ImageTiler/
 - ✅ Better input validation for scale and size fields
 - ✅ Confirmation dialogs for file overwriting
 - ✅ More intuitive GUI layout and labeling
+
+### Advanced Features (Latest)
+- 🆕 **Comprehensive Settings System**: Complete user preferences management
+- 🆕 **Visual Customization**: Custom colors for grid lines and excluded tiles
+- 🆕 **Manual Tile Selection**: Click-to-exclude tiles functionality
+- 🆕 **Multiple Paper Sizes**: Support for A4, A3, Letter, Legal, and Tabloid
+- 🆕 **Persistent Settings**: Automatic save/restore of user preferences
+- 🆕 **Grid Visibility Toggle**: Hide/show grid while maintaining functionality
+- 🆕 **Enhanced Build System**: Automated compilation and JAR creation scripts
+- 🆕 **Smart Paper Saving**: Automatic detection and exclusion of blank tiles
+- 🆕 **Professional UI**: Color-coded legend and intuitive interface design
 
 ## Use Cases
 
