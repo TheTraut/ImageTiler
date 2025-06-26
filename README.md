@@ -90,37 +90,70 @@ The preview panel displays:
 ## Building and Running
 
 ### Prerequisites
-- Java 8 or higher
-- Apache PDFBox library (included in `lib/` directory)
+
+**Essential Requirements:**
+- **Java Development Kit (JDK) 11 or higher** - Full JDK required, not just JRE
+  - Must include `javac` (compiler) and `jar` (archiver) tools
+  - JDK bin directory must be in your system PATH
+- **Apache PDFBox library** (automatically included via Git - see dependency setup below)
+
+### Dependency Setup
+
+The project uses Apache PDFBox 3.0.5 for PDF generation. This dependency is:
+- ✅ **Automatically included** when you clone/pull from the repository
+- ✅ **Located at**: `ImageTiler/lib/pdfbox-app-3.0.5.jar`
+- ✅ **Tracked in Git** with special `.gitignore` exception
+
+**No manual dependency installation needed!**
+
+### JDK Installation (If Missing)
+
+**Windows (using winget):**
+```powershell
+winget install Microsoft.OpenJDK.21
+```
+
+**Alternative JDK Sources:**
+- [Eclipse Adoptium](https://adoptium.net/)
+- [Oracle JDK](https://www.oracle.com/java/technologies/javase-downloads.html)
+- [Microsoft Build of OpenJDK](https://docs.microsoft.com/en-us/java/openjdk/)
+
+**Verify Installation:**
+```bash
+java -version    # Should show Java runtime
+javac -version   # Should show Java compiler
+jar --version    # Should show JAR archiver
+```
 
 ### Easy Build & Run (Recommended)
 
-#### Using the Build Script
-
-**macOS/Linux:**
+#### Navigate to Correct Directory
 ```bash
-cd ImageTiler
-./build.sh
+cd ImageTiler/imagetiler  # Note: /imagetiler subdirectory
 ```
+
+#### Using the Build Script
 
 **Windows:**
 ```cmd
-cd ImageTiler
 build.bat
+```
+
+**macOS/Linux:**
+```bash
+./build.sh
 ```
 
 #### Using the JAR Creation Script
 
-**macOS/Linux:**
-```bash
-cd ImageTiler
-./compile.sh
-```
-
 **Windows:**
 ```cmd
-cd ImageTiler
 build-jar.bat
+```
+
+**macOS/Linux:**
+```bash
+./build-jar.sh
 ```
 
 This creates `ImageTiler.jar` which can be:
@@ -130,26 +163,55 @@ This creates `ImageTiler.jar` which can be:
 
 ### Manual Building
 
-#### macOS/Linux
+**Navigate to correct directory first:**
 ```bash
-cd ImageTiler
-javac -cp "lib/*" -d build src/*.java
-java -cp "lib/*:build" Main
+cd ImageTiler/imagetiler
 ```
 
 #### Windows
 ```cmd
-cd ImageTiler
-javac -cp "lib/*" -d build src/*.java
-java -cp "lib/*;build" Main
+javac -cp "lib\pdfbox-app-3.0.5.jar" src\*.java
+java -cp "lib\pdfbox-app-3.0.5.jar;src;." Main
 ```
 
-### Creating Executable JAR
+#### macOS/Linux
 ```bash
-cd ImageTiler
-javac -cp "lib/*" -d build src/*.java
-jar cfm ImageTiler.jar MANIFEST.MF -C build . -C lib .
+javac -cp "lib/pdfbox-app-3.0.5.jar" src/*.java
+java -cp "lib/pdfbox-app-3.0.5.jar:src:." Main
 ```
+
+### Creating Executable JAR (Manual)
+```bash
+cd ImageTiler/imagetiler
+# Compile
+javac -cp "lib/pdfbox-app-3.0.5.jar" src/*.java
+# Extract dependencies
+mkdir -p temp_jar_contents
+jar -xf lib/pdfbox-app-3.0.5.jar -C temp_jar_contents
+# Copy compiled classes
+cp src/*.class temp_jar_contents/
+# Create JAR with manifest
+jar cfm ImageTiler.jar MANIFEST.MF -C temp_jar_contents .
+# Cleanup
+rm -rf temp_jar_contents
+```
+
+### Troubleshooting Build Issues
+
+**"'javac' is not recognized" or "'jar' is not recognized":**
+- Install full JDK (not just JRE)
+- Ensure JDK/bin directory is in your PATH
+- Restart terminal/command prompt after installation
+
+**"package org.apache.pdfbox.pdmodel does not exist":**
+- Verify `lib/pdfbox-app-3.0.5.jar` exists
+- Check you're in the `ImageTiler/imagetiler` directory
+- Ensure classpath includes the JAR file
+
+**"Unable to access jarfile ImageTiler.jar":**
+- JAR creation failed - check for compilation errors
+- Verify all dependencies are available
+- Try manual building first to identify issues
 
 ## Project Structure
 
@@ -164,7 +226,7 @@ ImageTiler/
 │   ├── Settings.java       # Settings management and persistence
 │   └── SettingsDialog.java # Settings configuration dialog
 ├── lib/
-│   └── pdfbox-app-3.0.2.jar # Apache PDFBox library
+│   └── pdfbox-app-3.0.5.jar # Apache PDFBox library
 ├── build/                  # Compiled class files (auto-generated)
 ├── build.sh               # Quick build and run script (macOS/Linux)
 ├── build.bat              # Quick build and run script (Windows)

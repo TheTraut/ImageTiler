@@ -201,23 +201,115 @@ NEW_SIZE(widthInches, heightInches, "Display Name")
 
 ## Build System
 
+### Prerequisites
+- **Java Development Kit (JDK) 11+**: Full JDK required, not just JRE
+  - Must include `javac` (compiler) and `jar` (archiver) tools
+  - JDK bin directory must be in your system PATH
+- **Apache PDFBox**: Automatically included via Git repository
+
 ### Scripts Overview
-- **build.sh**: Quick development build and run
-- **compile.sh**: Production JAR creation with dependencies
+- **build.bat / build.sh**: Quick development build and run
+- **build-jar.bat / build-jar.sh**: Production JAR creation with dependencies
+
+### Directory Structure
+```
+ImageTiler/imagetiler/          # ← Main build directory
+├── src/                        # Source files
+├── lib/                        # Dependencies
+│   └── pdfbox-app-3.0.5.jar  # ← Required dependency
+├── build.bat                   # Windows build script
+├── build-jar.bat              # Windows JAR creation
+└── MANIFEST.MF                 # JAR manifest
+```
 
 ### Dependencies
-- **PDFBox 3.0.2**: PDF generation and manipulation
+- **PDFBox 3.0.5**: PDF generation and manipulation
+  - **Location**: `lib/pdfbox-app-3.0.5.jar`
+  - **Git Status**: Tracked in repository (exception in .gitignore)
+  - **Size**: ~13.5 MB
 - **Java Swing**: GUI framework (built-in)
 - **Java AWT**: Graphics and printing (built-in)
+
+### Build Process
+
+#### Compilation
+```bash
+# Windows
+javac -cp "lib\pdfbox-app-3.0.5.jar" src\*.java
+
+# Unix/Linux/macOS
+javac -cp "lib/pdfbox-app-3.0.5.jar" src/*.java
+```
+
+#### JAR Creation Steps
+1. **Compile source files** with PDFBox in classpath
+2. **Extract PDFBox JAR** to temporary directory
+3. **Copy compiled classes** to temporary directory
+4. **Create final JAR** with MANIFEST.MF
+5. **Cleanup** temporary files
 
 ### JAR Structure
 ```
 ImageTiler.jar
-├── *.class (compiled application classes)
-├── org/ (PDFBox classes)
+├── *.class                     # Compiled application classes
+├── org/apache/pdfbox/          # PDFBox classes
+├── org/apache/fontbox/         # FontBox classes (PDFBox dependency)
+├── org/apache/commons/         # Commons classes (PDFBox dependency)
 ├── META-INF/
-│   └── MANIFEST.MF
+│   ├── MANIFEST.MF             # JAR manifest with Main-Class
+│   └── services/               # Service provider configurations
 └── (other PDFBox dependencies)
+```
+
+### Git Dependency Management
+
+**.gitignore Configuration:**
+```gitignore
+# Ignore all JAR files
+*.jar
+# Exception: Allow tracking of PDFBox dependency
+!lib/pdfbox-app-3.0.5.jar
+```
+
+**Benefits:**
+- ✅ No manual dependency downloads required
+- ✅ Consistent builds across environments
+- ✅ Version-locked dependency (3.0.5)
+- ✅ Simplified setup for contributors
+
+### Troubleshooting Builds
+
+#### Common Issues
+
+**"'javac' is not recognized"**
+- **Cause**: JDK not installed or not in PATH
+- **Solution**: Install full JDK and add bin directory to PATH
+
+**"'jar' is not recognized"**
+- **Cause**: JDK tools not in PATH
+- **Solution**: Ensure JDK bin directory (not just JRE) is in PATH
+
+**"package org.apache.pdfbox.pdmodel does not exist"**
+- **Cause**: PDFBox JAR not found or not in classpath
+- **Solution**: Verify `lib/pdfbox-app-3.0.5.jar` exists
+
+**"Unable to access jarfile ImageTiler.jar"**
+- **Cause**: JAR creation failed
+- **Solution**: Check compilation errors, verify dependencies
+
+#### Verification Commands
+```bash
+# Check JDK installation
+java -version      # Should show Java runtime
+javac -version     # Should show Java compiler
+jar --version      # Should show JAR archiver
+
+# Check dependency
+dir lib\pdfbox-app-3.0.5.jar     # Windows
+ls lib/pdfbox-app-3.0.5.jar      # Unix/Linux/macOS
+
+# Verify classpath
+javac -cp "lib/pdfbox-app-3.0.5.jar" -verbose src/Main.java
 ```
 
 ## Performance Considerations
