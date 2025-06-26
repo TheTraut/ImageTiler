@@ -10,16 +10,16 @@ if errorlevel 1 goto :no_java
 
 REM Compile the application
 echo Compiling Java sources...
-javac -cp "lib/pdfbox-app-3.0.5.jar;." src/*.java
+javac -cp lib\pdfbox-app-3.0.5.jar src\*.java
 if errorlevel 1 goto :compile_failed
 
 echo Compilation successful!
 echo.
 set /p choice="Do you want to run ImageTiler now? (y/n): "
-    if /i "%choice%"=="y" (
-        echo Starting ImageTiler...
-        java -cp "lib/pdfbox-app-3.0.5.jar;src;." Main
-    )
+if /i "%choice%"=="y" (
+    echo Starting ImageTiler...
+    java -cp "lib\pdfbox-app-3.0.5.jar;src;." Main
+)
 goto :end
 
 :no_java
