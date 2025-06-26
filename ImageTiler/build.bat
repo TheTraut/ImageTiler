@@ -7,7 +7,9 @@ echo Building ImageTiler...
 REM Check if Java is installed
 javac -version >nul 2>&1
 if errorlevel 1 (
-    echo Error: Java compiler (javac) not found. Please install Java JDK.
+    echo Error: Java compiler (javac) not found.
+    echo Please download and install the Java JDK from:
+    echo https://www.oracle.com/java/technologies/javase-jdk11-downloads.html
     pause
     exit /b 1
 )
