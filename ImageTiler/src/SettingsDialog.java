@@ -41,31 +41,61 @@ public class SettingsDialog extends JDialog {
         
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
         setResizable(false);
+        
+        // Set modern background color
+        getContentPane().setBackground(new Color(245, 245, 245));
+        
         pack();
         setLocationRelativeTo(parent);
     }
     
     private void initializeComponents() {
-        // Directory fields
+        // Directory fields with modern styling
         imageDirectoryField = new JTextField(30);
+        imageDirectoryField.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        imageDirectoryField.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(new Color(200, 200, 200)),
+            BorderFactory.createEmptyBorder(4, 8, 4, 8)
+        ));
+        
         pdfDirectoryField = new JTextField(30);
+        pdfDirectoryField.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        pdfDirectoryField.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(new Color(200, 200, 200)),
+            BorderFactory.createEmptyBorder(4, 8, 4, 8)
+        ));
         
-        // Paper size combo
+        // Paper size combo with modern styling
         paperSizeCombo = new JComboBox<>(Settings.PaperSize.values());
+        paperSizeCombo.setFont(new Font("SansSerif", Font.PLAIN, 12));
         
-        // Checkboxes
+        // Checkboxes with modern styling
         showGridCheckbox = new JCheckBox("Show tile grid");
+        showGridCheckbox.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        showGridCheckbox.setBackground(new Color(245, 245, 245));
+        
         showTileNumbersCheckbox = new JCheckBox("Show tile numbers");
+        showTileNumbersCheckbox.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        showTileNumbersCheckbox.setBackground(new Color(245, 245, 245));
+        
         autoSaveCheckbox = new JCheckBox("Auto-save settings");
+        autoSaveCheckbox.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        autoSaveCheckbox.setBackground(new Color(245, 245, 245));
+        
         confirmOverwritesCheckbox = new JCheckBox("Confirm file overwrites");
+        confirmOverwritesCheckbox.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        confirmOverwritesCheckbox.setBackground(new Color(245, 245, 245));
         
-        // Color buttons
-        gridColorButton = new JButton("Grid Color");
-        excludedColorButton = new JButton("Excluded Tile Color");
+        // Color buttons with modern styling
+        gridColorButton = createStyledButton("Grid Color");
+        excludedColorButton = createStyledButton("Excluded Tile Color");
         
-        // Spinners
+        // Spinners with modern styling
         scaleSpinner = new JSpinner(new SpinnerNumberModel(1.0, 0.1, 10.0, 0.1));
+        scaleSpinner.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        
         gridLineWidthSpinner = new JSpinner(new SpinnerNumberModel(2, 1, 10, 1));
+        gridLineWidthSpinner.setFont(new Font("SansSerif", Font.PLAIN, 12));
     }
     
     private void layoutComponents() {
@@ -87,7 +117,7 @@ public class SettingsDialog extends JDialog {
         dirGbc.gridx = 1;
         dirPanel.add(imageDirectoryField, dirGbc);
         dirGbc.gridx = 2;
-        JButton browseImageBtn = new JButton("Browse...");
+        JButton browseImageBtn = createStyledButton("Browse...");
         browseImageBtn.addActionListener(e -> browseForDirectory(imageDirectoryField));
         dirPanel.add(browseImageBtn, dirGbc);
         
@@ -96,7 +126,7 @@ public class SettingsDialog extends JDialog {
         dirGbc.gridx = 1;
         dirPanel.add(pdfDirectoryField, dirGbc);
         dirGbc.gridx = 2;
-        JButton browsePdfBtn = new JButton("Browse...");
+        JButton browsePdfBtn = createStyledButton("Browse...");
         browsePdfBtn.addActionListener(e -> browseForDirectory(pdfDirectoryField));
         dirPanel.add(browsePdfBtn, dirGbc);
         
@@ -166,11 +196,13 @@ public class SettingsDialog extends JDialog {
         
         add(mainPanel, BorderLayout.CENTER);
         
-        // Button panel
-        JPanel buttonPanel = new JPanel(new FlowLayout());
-        JButton okButton = new JButton("OK");
-        JButton cancelButton = new JButton("Cancel");
-        JButton resetButton = new JButton("Reset to Defaults");
+        // Button panel with modern styling
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 15));
+        buttonPanel.setBackground(new Color(245, 245, 245));
+        
+        JButton okButton = createActionButton("OK", new Color(76, 175, 80), Color.WHITE);
+        JButton cancelButton = createActionButton("Cancel", new Color(158, 158, 158), Color.WHITE);
+        JButton resetButton = createActionButton("Reset to Defaults", new Color(244, 67, 54), Color.WHITE);
         
         okButton.addActionListener(e -> saveAndClose());
         cancelButton.addActionListener(e -> dispose());
@@ -185,10 +217,69 @@ public class SettingsDialog extends JDialog {
     
     private JPanel createTitledPanel(String title) {
         JPanel panel = new JPanel();
-        panel.setBorder(BorderFactory.createTitledBorder(
-            BorderFactory.createEtchedBorder(), title, 
-            TitledBorder.LEFT, TitledBorder.TOP));
+        panel.setBackground(Color.WHITE);
+        panel.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createRaisedBevelBorder(),
+            BorderFactory.createTitledBorder(
+                BorderFactory.createEmptyBorder(5, 5, 5, 5), 
+                title, 
+                TitledBorder.LEFT, 
+                TitledBorder.TOP,
+                new Font("SansSerif", Font.BOLD, 13),
+                new Color(60, 60, 60)
+            )
+        ));
         return panel;
+    }
+    
+    private JButton createStyledButton(String text) {
+        JButton button = new JButton(text);
+        button.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        button.setBackground(new Color(240, 240, 240));
+        button.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(new Color(150, 150, 150)),
+            BorderFactory.createEmptyBorder(6, 12, 6, 12)
+        ));
+        button.setFocusPainted(false);
+        button.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        
+        // Add hover effect
+        button.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                button.setBackground(new Color(230, 230, 230));
+            }
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                button.setBackground(new Color(240, 240, 240));
+            }
+        });
+        
+        return button;
+    }
+    
+    private JButton createActionButton(String text, Color bgColor, Color textColor) {
+        JButton button = new JButton(text);
+        button.setFont(new Font("SansSerif", Font.BOLD, 12));
+        button.setBackground(bgColor);
+        button.setForeground(textColor);
+        button.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(bgColor.darker()),
+            BorderFactory.createEmptyBorder(8, 16, 8, 16)
+        ));
+        button.setFocusPainted(false);
+        button.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        button.setOpaque(true);
+        
+        // Add hover effect
+        button.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                button.setBackground(bgColor.brighter());
+            }
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                button.setBackground(bgColor);
+            }
+        });
+        
+        return button;
     }
     
     private void loadCurrentSettings() {

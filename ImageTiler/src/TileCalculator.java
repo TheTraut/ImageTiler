@@ -1,6 +1,7 @@
 public class TileCalculator {
 
     public static TilingResult calculateOptimalTiling(int imageWidth, int imageHeight, double pageWidth, double pageHeight) {
+        // Calculate how many tiles would be needed for the original image size
         int tilesWidePortrait = (int) Math.ceil((double) imageWidth / pageWidth);
         int tilesHighPortrait = (int) Math.ceil((double) imageHeight / pageHeight);
 
@@ -18,7 +19,67 @@ public class TileCalculator {
             return new TilingResult(tilesWidePortrait, tilesHighPortrait, pageWidth, pageHeight, imageWidth, imageHeight);
         }
     }
+    
+    /**
+     * Calculates how to fit an image on a single page for preview purposes
+     */
+    public static TilingResult calculateSinglePagePreview(int imageWidth, int imageHeight, double pageWidth, double pageHeight) {
+        // Calculate the scale needed to fit the image on a single page
+        double scaleToFitWidth = pageWidth / imageWidth;
+        double scaleToFitHeight = pageHeight / imageHeight;
+        double scaleToFitPortrait = Math.min(scaleToFitWidth, scaleToFitHeight);
+        
+        double scaleToFitWidthLandscape = pageHeight / imageWidth;
+        double scaleToFitHeightLandscape = pageWidth / imageHeight;
+        double scaleToFitLandscape = Math.min(scaleToFitWidthLandscape, scaleToFitHeightLandscape);
+        
+        // Choose the orientation that allows the image to be larger on a single page
+        boolean useLandscape = scaleToFitLandscape > scaleToFitPortrait;
+        
+        if (useLandscape) {
+            // Scale the image to fit on one landscape page
+            double scaledWidth = imageWidth * scaleToFitLandscape;
+            double scaledHeight = imageHeight * scaleToFitLandscape;
+            return new TilingResult(1, 1, pageHeight, pageWidth, (int)scaledWidth, (int)scaledHeight);
+        } else {
+            // Scale the image to fit on one portrait page
+            double scaledWidth = imageWidth * scaleToFitPortrait;
+            double scaledHeight = imageHeight * scaleToFitPortrait;
+            return new TilingResult(1, 1, pageWidth, pageHeight, (int)scaledWidth, (int)scaledHeight);
+        }
+    }
+    
+    /**
+     * Calculates tiling for a scaled image (used when scale > 1.0)
+     * Now scales from the single page baseline, not the original image
+     */
+    public static TilingResult calculateScaledTiling(int originalImageWidth, int originalImageHeight, double pageWidth, double pageHeight, float scale) {
+        // First get the single page baseline dimensions
+        TilingResult singlePageBaseline = calculateSinglePagePreview(originalImageWidth, originalImageHeight, pageWidth, pageHeight);
+        
+        // Scale from the single page baseline, not the original image
+        int scaledWidth = (int) (singlePageBaseline.imageWidth * scale);
+        int scaledHeight = (int) (singlePageBaseline.imageHeight * scale);
+        
+        // Calculate how many tiles are needed for the scaled image
+        int tilesWidePortrait = (int) Math.ceil((double) scaledWidth / pageWidth);
+        int tilesHighPortrait = (int) Math.ceil((double) scaledHeight / pageHeight);
 
+        int tilesWideLandscape = (int) Math.ceil((double) scaledWidth / pageHeight);
+        int tilesHighLandscape = (int) Math.ceil((double) scaledHeight / pageWidth);
+
+        int totalTilesPortrait = tilesWidePortrait * tilesHighPortrait;
+        int totalTilesLandscape = tilesWideLandscape * tilesHighLandscape;
+
+        boolean useLandscape = totalTilesLandscape < totalTilesPortrait;
+
+        if (useLandscape) {
+            return new TilingResult(tilesWideLandscape, tilesHighLandscape, pageHeight, pageWidth, scaledWidth, scaledHeight);
+        } else {
+            return new TilingResult(tilesWidePortrait, tilesHighPortrait, pageWidth, pageHeight, scaledWidth, scaledHeight);
+        }
+    }
+    
     /**
      * Determines if a tile at the given position contains meaningful image content
      */
@@ -77,29 +138,63 @@ public class TileCalculator {
     private static boolean analyzePixelContent(java.awt.image.BufferedImage image, int startX, int startY, int endX, int endY) {
         if (image == null) return true;
         
+        // Ensure bounds are within the image
+        startX = Math.max(0, startX);
+        startY = Math.max(0, startY);
+        endX = Math.min(image.getWidth(), endX);
+        endY = Math.min(image.getHeight(), endY);
+        
+        // If the region is invalid or too small, consider it empty
+        if (startX >= endX || startY >= endY) {
+            return false;
+        }
+        
+        int regionWidth = endX - startX;
+        int regionHeight = endY - startY;
+        
+        // If the region is very small (less than 5x5 pixels), consider it empty
+        if (regionWidth < 5 || regionHeight < 5) {
+            return false;
+        }
+        
         int meaningfulPixels = 0;
         int totalPixels = 0;
-        int sampleStep = Math.max(1, (endX - startX) / 20); // Sample every few pixels for performance
+        int sampleStep = Math.max(1, Math.min(regionWidth, regionHeight) / 15); // Adaptive sampling
         
-        for (int y = startY; y < endY && y < image.getHeight(); y += sampleStep) {
-            for (int x = startX; x < endX && x < image.getWidth(); x += sampleStep) {
-                totalPixels++;
-                int rgb = image.getRGB(x, y);
-                int alpha = (rgb >> 24) & 0xFF;
-                
-                // Consider a pixel meaningful if it's not completely transparent
-                // and not pure white (common background color)
-                if (alpha > 50 && rgb != 0xFFFFFFFF) {
-                    meaningfulPixels++;
+        // More robust pixel analysis with better sampling
+        for (int y = startY; y < endY; y += sampleStep) {
+            for (int x = startX; x < endX; x += sampleStep) {
+                if (x >= 0 && x < image.getWidth() && y >= 0 && y < image.getHeight()) {
+                    totalPixels++;
+                    int rgb = image.getRGB(x, y);
+                    int alpha = (rgb >> 24) & 0xFF;
+                    
+                    // Extract RGB components
+                    int red = (rgb >> 16) & 0xFF;
+                    int green = (rgb >> 8) & 0xFF;
+                    int blue = rgb & 0xFF;
+                    
+                    // Consider a pixel meaningful if:
+                    // 1. It's not completely transparent (alpha > 30)
+                    // 2. It's not pure white or very light (common backgrounds)
+                    // 3. It has sufficient color variation from white
+                    boolean isTransparent = alpha < 30;
+                    boolean isPureWhite = (red >= 250 && green >= 250 && blue >= 250);
+                    boolean isNearWhite = (red >= 240 && green >= 240 && blue >= 240);
+                    
+                    if (!isTransparent && !isPureWhite && !isNearWhite) {
+                        meaningfulPixels++;
+                    }
                 }
             }
         }
         
         if (totalPixels == 0) return false;
         
-        // Consider the tile meaningful if more than 5% of sampled pixels have content
+        // Use a more balanced threshold for meaningful content
+        // Require at least 3% of pixels to have meaningful content (less aggressive)
         double contentRatio = (double) meaningfulPixels / totalPixels;
-        return contentRatio > 0.05;
+        return contentRatio > 0.03;
     }
 
     /**

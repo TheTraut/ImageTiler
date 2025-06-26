@@ -208,11 +208,18 @@ public class TilePrinter {
     public static void printTiledImageWithSelection(BufferedImage image, float scale, boolean isRotated, ImagePanel imagePanel) {
         PrinterJob job = PrinterJob.getPrinterJob();
 
-        // Pre-calculate non-blank tiles
-        int scaledWidth = (int) (image.getWidth() * scale);
-        int scaledHeight = (int) (image.getHeight() * scale);
-        // Use approximate page size for calculation - will be adjusted in print method
-        TileCalculator.TilingResult tilingResult = TileCalculator.calculateOptimalTiling(scaledWidth, scaledHeight, 8.27 * 72, 11.69 * 72);
+        // Pre-calculate non-blank tiles using the same logic as the display
+        double pageWidth = 8.27 * 72; // A4 width in points (portrait)
+        double pageHeight = 11.69 * 72; // A4 height in points (portrait)
+        
+        TileCalculator.TilingResult tilingResult;
+        if (scale == 1.0f) {
+            // At scale 1.0, use single page preview (auto-fit to one page)
+            tilingResult = TileCalculator.calculateSinglePagePreview(image.getWidth(), image.getHeight(), pageWidth, pageHeight);
+        } else {
+            // When scaled, calculate actual tiling for the scaled dimensions
+            tilingResult = TileCalculator.calculateScaledTiling(image.getWidth(), image.getHeight(), pageWidth, pageHeight, scale);
+        }
         java.util.List<TileCalculator.TileInfo> selectedTiles = imagePanel.getSelectedTiles(tilingResult, image);
 
         job.setPrintable(new Printable() {
@@ -228,16 +235,35 @@ public class TilePrinter {
                 double pageHeight = pageFormat.getImageableHeight();
 
                 // Recalculate tiling with actual printer page dimensions
-                TileCalculator.TilingResult actualTilingResult = TileCalculator.calculateOptimalTiling(scaledWidth, scaledHeight, pageWidth, pageHeight);
+                TileCalculator.TilingResult actualTilingResult;
+                if (scale == 1.0f) {
+                    actualTilingResult = TileCalculator.calculateSinglePagePreview(image.getWidth(), image.getHeight(), pageWidth, pageHeight);
+                } else {
+                    actualTilingResult = TileCalculator.calculateScaledTiling(image.getWidth(), image.getHeight(), pageWidth, pageHeight, scale);
+                }
 
                 // Get the tile info for this page
                 TileCalculator.TileInfo tileInfo = selectedTiles.get(pageIndex);
+
+                // Calculate the actual scaled dimensions for rendering
+                // Always use single page baseline approach
+                TileCalculator.TilingResult baselineResult = TileCalculator.calculateSinglePagePreview(image.getWidth(), image.getHeight(), pageWidth, pageHeight);
+                int renderWidth, renderHeight;
+                if (scale == 1.0f) {
+                    // For scale 1.0, use the scaled dimensions from single page preview
+                    renderWidth = baselineResult.imageWidth;
+                    renderHeight = baselineResult.imageHeight;
+                } else {
+                    // For other scales, scale from the single page baseline
+                    renderWidth = (int) (baselineResult.imageWidth * scale);
+                    renderHeight = (int) (baselineResult.imageHeight * scale);
+                }
 
                 // Calculate position based on actual tile dimensions
                 int x = -(int) (tileInfo.col * actualTilingResult.tileWidth);
                 int y = -(int) (tileInfo.row * actualTilingResult.tileHeight);
 
-                g2d.drawImage(image, x, y, scaledWidth, scaledHeight, null);
+                g2d.drawImage(image, x, y, renderWidth, renderHeight, null);
 
                 return PAGE_EXISTS;
             }
@@ -313,11 +339,29 @@ public class TilePrinter {
         PDDocument document = new PDDocument();
         double pageWidth = PDRectangle.A4.getWidth();
         double pageHeight = PDRectangle.A4.getHeight();
-        int scaledWidth = (int) (image.getWidth() * scale);
-        int scaledHeight = (int) (image.getHeight() * scale);
-
-        TileCalculator.TilingResult tilingResult = TileCalculator.calculateOptimalTiling(scaledWidth, scaledHeight, pageWidth, pageHeight);
+        
+        TileCalculator.TilingResult tilingResult;
+        if (scale == 1.0f) {
+            // At scale 1.0, use single page preview (auto-fit to one page)
+            tilingResult = TileCalculator.calculateSinglePagePreview(image.getWidth(), image.getHeight(), pageWidth, pageHeight);
+        } else {
+            // When scaled, calculate actual tiling for the scaled dimensions
+            tilingResult = TileCalculator.calculateScaledTiling(image.getWidth(), image.getHeight(), pageWidth, pageHeight, scale);
+        }
         java.util.List<TileCalculator.TileInfo> selectedTiles = imagePanel.getSelectedTiles(tilingResult, image);
+        
+        // Calculate the actual scaled dimensions for rendering using baseline approach
+        TileCalculator.TilingResult baselineResult = TileCalculator.calculateSinglePagePreview(image.getWidth(), image.getHeight(), pageWidth, pageHeight);
+        int scaledWidth, scaledHeight;
+        if (scale == 1.0f) {
+            // For scale 1.0, use the scaled dimensions from single page preview
+            scaledWidth = baselineResult.imageWidth;
+            scaledHeight = baselineResult.imageHeight;
+        } else {
+            // For other scales, scale from the single page baseline
+            scaledWidth = (int) (baselineResult.imageWidth * scale);
+            scaledHeight = (int) (baselineResult.imageHeight * scale);
+        }
 
         File tempFile = null;
         try {

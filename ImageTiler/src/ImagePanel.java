@@ -19,8 +19,9 @@ public class ImagePanel extends JPanel {
     private TileCalculator.TilingResult cachedTilingResult;
     private float cachedScale = -1;
     private BufferedImage cachedAnalysisImage;
+    private float cachedRotationAngle = -1;
     
-    // Manual tile selection
+    // Manual tile selection - three states: auto (default), manually excluded, manually included
     private java.util.Set<String> manuallyExcludedTiles = new java.util.HashSet<>();
     private java.util.Set<String> manuallyIncludedTiles = new java.util.HashSet<>();
     private boolean manualSelectionMode = false;
@@ -30,15 +31,90 @@ public class ImagePanel extends JPanel {
     private int lastDrawX, lastDrawY, lastDrawWidth, lastDrawHeight;
     private int lastImageWidth, lastImageHeight;
     
+    // Zoom and pan functionality
+    private double zoomFactor = 1.0;
+    private double panX = 0;
+    private double panY = 0;
+    private Point lastPanPoint;
+    private boolean isPanning = false;
+    private static final double MIN_ZOOM = 0.1;
+    private static final double MAX_ZOOM = 10.0;
+    private static final double ZOOM_INCREMENT = 0.1;
+    
     public ImagePanel() {
         super();
         this.settings = Settings.getInstance();
         
-        // Add mouse listener for tile selection
+        // Add mouse listeners for tile selection and panning
         addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
-                handleTileClick(e);
+                if (!isPanning) {
+                    handleTileClick(e);
+                }
+            }
+            
+            @Override
+            public void mousePressed(MouseEvent e) {
+                if (SwingUtilities.isRightMouseButton(e) || e.isControlDown()) {
+                    // Start panning with right click or Ctrl+click
+                    lastPanPoint = e.getPoint();
+                    isPanning = true;
+                    setCursor(Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR));
+                }
+            }
+            
+            @Override
+            public void mouseReleased(MouseEvent e) {
+                if (isPanning) {
+                    isPanning = false;
+                    setCursor(Cursor.getDefaultCursor());
+                    lastPanPoint = null;
+                }
+            }
+        });
+        
+        addMouseMotionListener(new MouseAdapter() {
+            @Override
+            public void mouseDragged(MouseEvent e) {
+                if (isPanning && lastPanPoint != null) {
+                    double dx = e.getX() - lastPanPoint.x;
+                    double dy = e.getY() - lastPanPoint.y;
+                    panX += dx / zoomFactor;
+                    panY += dy / zoomFactor;
+                    lastPanPoint = e.getPoint();
+                    repaint();
+                }
+            }
+        });
+        
+        // Add mouse wheel listener for zooming
+        addMouseWheelListener(e -> {
+            double oldZoom = zoomFactor;
+            if (e.getWheelRotation() < 0) {
+                // Zoom in
+                zoomFactor = Math.min(MAX_ZOOM, zoomFactor * 1.1);
+            } else {
+                // Zoom out
+                zoomFactor = Math.max(MIN_ZOOM, zoomFactor / 1.1);
+            }
+            
+            if (Math.abs(zoomFactor - oldZoom) > 0.001) {
+                // Adjust pan to zoom towards mouse position
+                Point mousePos = e.getPoint();
+                double centerX = getWidth() / 2.0;
+                double centerY = getHeight() / 2.0;
+                
+                // Calculate offset from center
+                double offsetX = mousePos.x - centerX;
+                double offsetY = mousePos.y - centerY;
+                
+                // Adjust pan based on zoom change
+                double zoomChange = zoomFactor / oldZoom;
+                panX = panX + (offsetX / oldZoom) * (1 - 1/zoomChange);
+                panY = panY + (offsetY / oldZoom) * (1 - 1/zoomChange);
+                
+                repaint();
             }
         });
     }
@@ -48,6 +124,7 @@ public class ImagePanel extends JPanel {
             image = ImageIO.read(new File(imagePath));
             rotatedImage = image;
             rotationAngle = 0;
+            resetZoomAndPan(); // Reset zoom and pan when new image is loaded
             invalidateCache(); // Clear cache when new image is loaded
             repaint();
         } catch (IOException e) {
@@ -65,6 +142,7 @@ public class ImagePanel extends JPanel {
 
     public void setScale(float scale) {
         this.scale = scale;
+        resetZoomAndPan(); // Reset zoom and pan when scale changes
         invalidateCache(); // Clear cache when scale changes
         repaint();
     }
@@ -75,6 +153,11 @@ public class ImagePanel extends JPanel {
             rotationAngle = 0;
         }
         rotatedImage = rotateBufferedImage(image, rotationAngle);
+        
+        // Clear manual selections when rotating to avoid position mismatch
+        clearManualSelections();
+        resetZoomAndPan(); // Reset zoom and pan when rotating
+        
         invalidateCache(); // Clear cache when image is rotated
         repaint();
     }
@@ -100,10 +183,31 @@ public class ImagePanel extends JPanel {
             Graphics2D g2d = (Graphics2D) g.create();
             int panelWidth = getWidth();
             int panelHeight = getHeight();
-            int imageWidth = (int) (rotatedImage.getWidth() * scale);
-            int imageHeight = (int) (rotatedImage.getHeight() * scale);
+            
+            double pageWidth = 8.27 * 72; // A4 width in points (portrait)
+            double pageHeight = 11.69 * 72; // A4 height in points (portrait)
+            
+            // Calculate the effective image dimensions based on scale
+            // Always use single page baseline as reference
+            TileCalculator.TilingResult baselineResult = TileCalculator.calculateSinglePagePreview(rotatedImage.getWidth(), rotatedImage.getHeight(), pageWidth, pageHeight);
+            
+            int effectiveImageWidth, effectiveImageHeight;
+            TileCalculator.TilingResult tilingResult;
+            
+            if (scale == 1.0f) {
+                // At scale 1.0, use single page preview dimensions
+                tilingResult = baselineResult;
+                effectiveImageWidth = tilingResult.imageWidth;
+                effectiveImageHeight = tilingResult.imageHeight;
+            } else {
+                // When scaled, scale from the single page baseline
+                effectiveImageWidth = (int) (baselineResult.imageWidth * scale);
+                effectiveImageHeight = (int) (baselineResult.imageHeight * scale);
+                tilingResult = TileCalculator.calculateScaledTiling(rotatedImage.getWidth(), rotatedImage.getHeight(), pageWidth, pageHeight, scale);
+            }
 
-            float aspectRatio = (float) imageWidth / imageHeight;
+            // Calculate display dimensions based on effective image size
+            float aspectRatio = (float) effectiveImageWidth / effectiveImageHeight;
             int drawWidth = panelWidth;
             int drawHeight = (int) (panelWidth / aspectRatio);
 
@@ -117,18 +221,23 @@ public class ImagePanel extends JPanel {
             drawWidth -= 2 * margin;
             drawHeight -= 2 * margin;
 
-            int x = (panelWidth - drawWidth) / 2 + margin;
-            int y = (panelHeight - drawHeight) / 2 + margin;
+            // Apply zoom and pan transformations
+            int baseX = (panelWidth - drawWidth) / 2 + margin;
+            int baseY = (panelHeight - drawHeight) / 2 + margin;
+            
+            // Apply zoom transformation
+            Graphics2D g2dTransformed = (Graphics2D) g2d.create();
+            g2dTransformed.translate(panelWidth / 2.0, panelHeight / 2.0);
+            g2dTransformed.scale(zoomFactor, zoomFactor);
+            g2dTransformed.translate(-panelWidth / 2.0 + panX, -panelHeight / 2.0 + panY);
+            
+            int x = baseX;
+            int y = baseY;
+            
+            g2dTransformed.drawImage(rotatedImage, x, y, drawWidth, drawHeight, this);
 
-            g2d.drawImage(rotatedImage, x, y, drawWidth, drawHeight, this);
-
-            double pageWidth = 8.27 * 72; // A4 width in points (portrait)
-            double pageHeight = 11.69 * 72; // A4 height in points (portrait)
-
-            TileCalculator.TilingResult tilingResult = TileCalculator.calculateOptimalTiling(imageWidth, imageHeight, pageWidth, pageHeight);
-
-            double tileWidthScaled = drawWidth / (double) imageWidth * tilingResult.tileWidth;
-            double tileHeightScaled = drawHeight / (double) imageHeight * tilingResult.tileHeight;
+            double tileWidthScaled = drawWidth / (double) effectiveImageWidth * tilingResult.tileWidth;
+            double tileHeightScaled = drawHeight / (double) effectiveImageHeight * tilingResult.tileHeight;
 
             // Get non-blank tiles using cached analysis or recalculate if needed
             java.util.List<TileCalculator.TileInfo> nonBlankTiles = getCachedNonBlankTiles(tilingResult, rotatedImage);
@@ -145,13 +254,14 @@ public class ImagePanel extends JPanel {
                 lastDrawY = y;
                 lastDrawWidth = drawWidth;
                 lastDrawHeight = drawHeight;
-                lastImageWidth = imageWidth;
-                lastImageHeight = imageHeight;
+                lastImageWidth = effectiveImageWidth;
+                lastImageHeight = effectiveImageHeight;
+                g2dTransformed.dispose();
                 g2d.dispose();
                 return;
             }
             
-            g2d.setStroke(new BasicStroke(settings.getGridLineWidth()));
+            g2dTransformed.setStroke(new BasicStroke(settings.getGridLineWidth()));
 
             for (int row = 0; row < tilingResult.tilesHigh; row++) {
                 for (int col = 0; col < tilingResult.tilesWide; col++) {
@@ -160,40 +270,50 @@ public class ImagePanel extends JPanel {
                     int width = (int) Math.min(tileWidthScaled, drawWidth - col * tileWidthScaled);
                     int height = (int) Math.min(tileHeightScaled, drawHeight - row * tileHeightScaled);
 
-                    boolean isNonBlank = nonBlankPositions.contains(col + "," + row);
+                    String tileKey = col + "," + row;
+                    boolean isNonBlank = nonBlankPositions.contains(tileKey);
+                    boolean isExcluded = manuallyExcludedTiles.contains(tileKey);
+                    boolean isIncluded = manuallyIncludedTiles.contains(tileKey);
                     
                     // Draw semi-transparent overlay for different tile states
-                    if (manuallyExcludedTiles.contains(col + "," + row)) {
-                        // Semi-transparent overlay for excluded tiles using settings color
+                    if (isExcluded) {
+                        // Red overlay for excluded tiles
                         Color excludedColor = settings.getExcludedColor();
-                        g2d.setColor(new Color(excludedColor.getRed(), excludedColor.getGreen(), excludedColor.getBlue(), 120));
-                        g2d.fillRect(tileX, tileY, width, height);
+                        g2dTransformed.setColor(new Color(excludedColor.getRed(), excludedColor.getGreen(), excludedColor.getBlue(), 120));
+                        g2dTransformed.fillRect(tileX, tileY, width, height);
+                    } else if (isIncluded) {
+                        // Blue overlay for manually included tiles
+                        g2dTransformed.setColor(new Color(0, 100, 255, 100));
+                        g2dTransformed.fillRect(tileX, tileY, width, height);
                     } else if (isNonBlank) {
-                        // Light tint for tiles that will be printed using settings grid color
+                        // Green tint for auto-selected tiles
                         Color gridColor = settings.getGridColor();
-                        g2d.setColor(new Color(gridColor.getRed(), gridColor.getGreen(), gridColor.getBlue(), 60));
-                        g2d.fillRect(tileX, tileY, width, height);
+                        g2dTransformed.setColor(new Color(gridColor.getRed(), gridColor.getGreen(), gridColor.getBlue(), 60));
+                        g2dTransformed.fillRect(tileX, tileY, width, height);
                     }
 
                     // Draw border around tile
-                    if (manuallyExcludedTiles.contains(col + "," + row)) {
-                        g2d.setColor(settings.getExcludedColor()); // Use settings color for excluded
-                        g2d.setStroke(new BasicStroke(settings.getGridLineWidth() + 1));
+                    if (isExcluded) {
+                        g2dTransformed.setColor(settings.getExcludedColor()); // Red border for excluded
+                        g2dTransformed.setStroke(new BasicStroke(settings.getGridLineWidth() + 1));
+                    } else if (isIncluded) {
+                        g2dTransformed.setColor(new Color(0, 100, 255)); // Blue border for manually included
+                        g2dTransformed.setStroke(new BasicStroke(settings.getGridLineWidth() + 1));
                     } else if (isNonBlank) {
-                        g2d.setColor(settings.getGridColor()); // Use settings color for included
-                        g2d.setStroke(new BasicStroke(settings.getGridLineWidth()));
+                        g2dTransformed.setColor(settings.getGridColor()); // Green border for auto-selected
+                        g2dTransformed.setStroke(new BasicStroke(settings.getGridLineWidth()));
                     } else {
-                        g2d.setColor(Color.GRAY); // Gray border for blank
-                        g2d.setStroke(new BasicStroke(1));
+                        g2dTransformed.setColor(Color.GRAY); // Gray border for blank
+                        g2dTransformed.setStroke(new BasicStroke(1));
                     }
-                    g2d.drawRect(tileX, tileY, width, height);
+                    g2dTransformed.drawRect(tileX, tileY, width, height);
                     
                     // Add tile numbers if enabled in settings
                     if (settings.isShowTileNumbers()) {
-                        g2d.setColor(Color.BLACK);
-                        g2d.setFont(new Font("Arial", Font.BOLD, 12));
+                        g2dTransformed.setColor(Color.BLACK);
+                        g2dTransformed.setFont(new Font("Arial", Font.BOLD, 12));
                         int tileNum = row * tilingResult.tilesWide + col + 1;
-                        g2d.drawString(String.valueOf(tileNum), tileX + width / 2 - 6, tileY + height / 2 + 6);
+                        g2dTransformed.drawString(String.valueOf(tileNum), tileX + width / 2 - 6, tileY + height / 2 + 6);
                     }
                 }
             }
@@ -210,42 +330,8 @@ public class ImagePanel extends JPanel {
                 }
             }
             
-            // Draw information overlay
-            g2d.setColor(new Color(0, 0, 0, 140)); // Semi-transparent black
-            g2d.fillRect(10, 10, 320, 180);
-            g2d.setColor(Color.WHITE);
-            g2d.setFont(new Font("Arial", Font.BOLD, 14));
-            g2d.drawString("Tiling Information:", 20, 30);
-            g2d.setFont(new Font("Arial", Font.PLAIN, 12));
-            g2d.drawString("Pages to print: " + selectedTiles, 20, 50);
-            g2d.drawString("Grid size: " + tilingResult.tilesWide + " × " + tilingResult.tilesHigh, 20, 70);
-            
-            int totalBlankPages = tilingResult.tilesWide * tilingResult.tilesHigh - selectedTiles;
-            g2d.setColor(new Color(144, 238, 144)); // Light green
-            g2d.drawString("Paper saved: " + totalBlankPages + " pages!", 20, 90);
-            
-            if (excludedNonBlankTiles > 0) {
-                g2d.setColor(Color.YELLOW);
-                g2d.drawString("Manually excluded: " + excludedNonBlankTiles + " tiles", 20, 110);
-            }
-            
-            g2d.setColor(Color.WHITE);
-            g2d.drawString("Page Size: " + String.format("%.1f × %.1f inches", 
-                tilingResult.tileWidth / 72.0, tilingResult.tileHeight / 72.0), 20, 130);
-            
-            // Show scale information if scaled
-            if (scale != 1.0f) {
-                g2d.drawString("Scale: " + String.format("%.2fx", scale), 20, 150);
-            }
-            
-            // Legend with better visual indicators using settings colors
-            g2d.setFont(new Font("Arial", Font.BOLD, 11));
-            g2d.setColor(settings.getGridColor()); // Use settings grid color
-            g2d.drawString("■ Will be printed (custom color)", 20, 170);
-            g2d.setColor(settings.getExcludedColor()); // Use settings excluded color
-            g2d.drawString("■ Excluded (custom color - click to toggle)", 20, 185);
-            g2d.setColor(Color.GRAY);
-            g2d.drawString("■ Blank (gray border - auto-skipped)", 20, 200);
+            // Draw enhanced information overlay with modern styling
+            drawModernInfoPanel(g2d, selectedTiles, tilingResult, excludedNonBlankTiles);
 
             // Save current drawing parameters for mouse handling
             currentTilingResult = tilingResult;
@@ -253,9 +339,10 @@ public class ImagePanel extends JPanel {
             lastDrawY = y;
             lastDrawWidth = drawWidth;
             lastDrawHeight = drawHeight;
-            lastImageWidth = imageWidth;
-            lastImageHeight = imageHeight;
+            lastImageWidth = effectiveImageWidth;
+            lastImageHeight = effectiveImageHeight;
 
+            g2dTransformed.dispose();
             g2d.dispose();
         }
     }
@@ -268,6 +355,7 @@ public class ImagePanel extends JPanel {
         cachedTilingResult = null;
         cachedScale = -1;
         cachedAnalysisImage = null;
+        cachedRotationAngle = -1;
     }
     
     /**
@@ -278,6 +366,7 @@ public class ImagePanel extends JPanel {
         boolean needsRecalculation = cachedNonBlankTiles == null ||
                                       cachedScale != scale ||
                                       cachedAnalysisImage != currentImage ||
+                                      cachedRotationAngle != rotationAngle ||
                                       !tilingResultsEqual(cachedTilingResult, tilingResult);
         
         if (needsRecalculation) {
@@ -286,6 +375,7 @@ public class ImagePanel extends JPanel {
             cachedTilingResult = tilingResult;
             cachedScale = scale;
             cachedAnalysisImage = currentImage;
+            cachedRotationAngle = rotationAngle;
         }
         
         return cachedNonBlankTiles;
@@ -306,27 +396,41 @@ public class ImagePanel extends JPanel {
     
     /**
      * Handles mouse clicks on tiles for manual selection
+     * Three-state toggle: auto → excluded → included → auto
      */
     private void handleTileClick(MouseEvent e) {
         if (currentTilingResult == null) return;
         
-        int clickX = e.getX();
-        int clickY = e.getY();
+        // Transform mouse coordinates to account for zoom and pan
+        double transformedX = (e.getX() - getWidth() / 2.0) / zoomFactor + getWidth() / 2.0 - panX;
+        double transformedY = (e.getY() - getHeight() / 2.0) / zoomFactor + getHeight() / 2.0 - panY;
         
         double tileWidthScaled = (double) lastDrawWidth / currentTilingResult.tilesWide;
         double tileHeightScaled = (double) lastDrawHeight / currentTilingResult.tilesHigh;
 
-        int col = (int) ((clickX - lastDrawX) / tileWidthScaled);
-        int row = (int) ((clickY - lastDrawY) / tileHeightScaled);
+        int col = (int) ((transformedX - lastDrawX) / tileWidthScaled);
+        int row = (int) ((transformedY - lastDrawY) / tileHeightScaled);
 
         // Check if click is within bounds
         if (col >= 0 && col < currentTilingResult.tilesWide && row >= 0 && row < currentTilingResult.tilesHigh) {
             String tileKey = col + "," + row;
-            if (manuallyExcludedTiles.contains(tileKey)) {
-                manuallyExcludedTiles.remove(tileKey);
-            } else {
+            
+            // Determine current state and cycle to next state
+            boolean isExcluded = manuallyExcludedTiles.contains(tileKey);
+            boolean isIncluded = manuallyIncludedTiles.contains(tileKey);
+            
+            if (!isExcluded && !isIncluded) {
+                // Auto → Excluded
                 manuallyExcludedTiles.add(tileKey);
+            } else if (isExcluded) {
+                // Excluded → Included
+                manuallyExcludedTiles.remove(tileKey);
+                manuallyIncludedTiles.add(tileKey);
+            } else if (isIncluded) {
+                // Included → Auto
+                manuallyIncludedTiles.remove(tileKey);
             }
+            
             repaint();
         }
     }
@@ -348,20 +452,186 @@ public class ImagePanel extends JPanel {
     }
     
     /**
-     * Gets the final list of tiles to print/save (excluding manually excluded ones)
+     * Gets the final list of tiles to print/save (auto-selected + manually included - manually excluded)
      */
     public java.util.List<TileCalculator.TileInfo> getSelectedTiles(TileCalculator.TilingResult tilingResult, BufferedImage image) {
         java.util.List<TileCalculator.TileInfo> allNonBlankTiles = TileCalculator.getNonBlankTiles(tilingResult, image);
         java.util.List<TileCalculator.TileInfo> selectedTiles = new java.util.ArrayList<>();
+        java.util.Set<String> addedTiles = new java.util.HashSet<>();
         
+        // Add auto-selected tiles (not manually excluded)
         for (TileCalculator.TileInfo tile : allNonBlankTiles) {
             String tileKey = tile.col + "," + tile.row;
             if (!manuallyExcludedTiles.contains(tileKey)) {
                 selectedTiles.add(tile);
+                addedTiles.add(tileKey);
+            }
+        }
+        
+        // Add manually included tiles (even if they weren't auto-selected)
+        for (String tileKey : manuallyIncludedTiles) {
+            if (!addedTiles.contains(tileKey)) {
+                String[] parts = tileKey.split(",");
+                int col = Integer.parseInt(parts[0]);
+                int row = Integer.parseInt(parts[1]);
+                int tileNumber = row * tilingResult.tilesWide + col + 1;
+                selectedTiles.add(new TileCalculator.TileInfo(col, row, tileNumber));
             }
         }
         
         return selectedTiles;
+    }
+    
+    /**
+     * Draws a modern styled information panel
+     */
+    private void drawModernInfoPanel(Graphics2D g2d, int selectedTiles, TileCalculator.TilingResult tilingResult, int excludedNonBlankTiles) {
+        // Create a rounded rectangle background
+        int panelWidth = 350;
+        int panelHeight = 220;
+        int panelX = 15;
+        int panelY = 15;
+        
+        // Draw shadow
+        g2d.setColor(new Color(0, 0, 0, 40));
+        g2d.fillRoundRect(panelX + 2, panelY + 2, panelWidth, panelHeight, 15, 15);
+        
+        // Draw main panel background
+        g2d.setColor(new Color(255, 255, 255, 240));
+        g2d.fillRoundRect(panelX, panelY, panelWidth, panelHeight, 15, 15);
+        
+        // Draw border
+        g2d.setColor(new Color(200, 200, 200));
+        g2d.setStroke(new BasicStroke(1));
+        g2d.drawRoundRect(panelX, panelY, panelWidth, panelHeight, 15, 15);
+        
+        // Header section
+        g2d.setColor(new Color(60, 120, 180));
+        g2d.fillRoundRect(panelX, panelY, panelWidth, 35, 15, 15);
+        g2d.fillRect(panelX, panelY + 20, panelWidth, 15);
+        
+        g2d.setColor(Color.WHITE);
+        g2d.setFont(new Font("SansSerif", Font.BOLD, 16));
+        g2d.drawString("📊 Tiling Information", panelX + 15, panelY + 23);
+        
+        // Content area
+        int contentY = panelY + 50;
+        int lineHeight = 20;
+        g2d.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        
+        // Pages to print (highlighted)
+        g2d.setColor(new Color(34, 139, 34));
+        g2d.setFont(new Font("SansSerif", Font.BOLD, 14));
+        g2d.drawString("📄 Pages to print: " + selectedTiles, panelX + 15, contentY);
+        contentY += lineHeight + 3;
+        
+        // Grid size
+        g2d.setColor(new Color(60, 60, 60));
+        g2d.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        g2d.drawString("📐 Grid size: " + tilingResult.tilesWide + " × " + tilingResult.tilesHigh, panelX + 15, contentY);
+        contentY += lineHeight;
+        
+        // Paper saved (environmental impact)
+        int totalBlankPages = tilingResult.tilesWide * tilingResult.tilesHigh - selectedTiles;
+        g2d.setColor(new Color(76, 175, 80));
+        g2d.setFont(new Font("SansSerif", Font.BOLD, 13));
+        g2d.drawString("🌱 Paper saved: " + totalBlankPages + " pages!", panelX + 15, contentY);
+        contentY += lineHeight;
+        
+        // Manually excluded tiles
+        if (excludedNonBlankTiles > 0) {
+            g2d.setColor(new Color(255, 152, 0));
+            g2d.drawString("✋ Manually excluded: " + excludedNonBlankTiles + " tiles", panelX + 15, contentY);
+            contentY += lineHeight;
+        }
+        
+        // Page size
+        g2d.setColor(new Color(60, 60, 60));
+        g2d.drawString("📏 Page Size: " + String.format("%.1f × %.1f inches", 
+            tilingResult.tileWidth / 72.0, tilingResult.tileHeight / 72.0), panelX + 15, contentY);
+        contentY += lineHeight;
+        
+        // Scale information
+        if (scale != 1.0f) {
+            g2d.setColor(new Color(63, 81, 181));
+            g2d.drawString("🔍 Scale: " + String.format("%.2fx", scale), panelX + 15, contentY);
+            contentY += lineHeight;
+        }
+        
+        // Zoom information
+        if (zoomFactor != 1.0) {
+            g2d.setColor(new Color(156, 39, 176));
+            g2d.drawString("🔎 Zoom: " + String.format("%.1fx", zoomFactor), panelX + 15, contentY);
+            contentY += lineHeight;
+        }
+        
+        // Controls information
+        g2d.setColor(new Color(96, 125, 139));
+        g2d.setFont(new Font("SansSerif", Font.ITALIC, 11));
+        g2d.drawString("💡 Mouse wheel: zoom | Right-click + drag: pan", panelX + 15, contentY);
+        contentY += 15;
+        
+        // Legend section with modern styling
+        contentY += 5;
+        g2d.setColor(new Color(120, 120, 120));
+        g2d.setFont(new Font("SansSerif", Font.BOLD, 12));
+        g2d.drawString("Legend:", panelX + 15, contentY);
+        contentY += 15;
+        
+        g2d.setFont(new Font("SansSerif", Font.PLAIN, 11));
+        
+        // Will be printed (auto-selected)
+        g2d.setColor(settings.getGridColor());
+        g2d.fillRect(panelX + 20, contentY - 8, 12, 10);
+        g2d.setColor(new Color(60, 60, 60));
+        g2d.drawString("Will be printed", panelX + 38, contentY);
+        contentY += 16;
+        
+        // Excluded
+        g2d.setColor(settings.getExcludedColor());
+        g2d.fillRect(panelX + 20, contentY - 8, 12, 10);
+        g2d.setColor(new Color(60, 60, 60));
+        g2d.drawString("Excluded (click to toggle)", panelX + 38, contentY);
+        contentY += 16;
+        
+        // Manually included
+        g2d.setColor(new Color(0, 100, 255));
+        g2d.fillRect(panelX + 20, contentY - 8, 12, 10);
+        g2d.setColor(new Color(60, 60, 60));
+        g2d.drawString("Manually included", panelX + 38, contentY);
+        contentY += 16;
+        
+        // Blank
+        g2d.setColor(Color.LIGHT_GRAY);
+        g2d.fillRect(panelX + 20, contentY - 8, 12, 10);
+        g2d.setColor(Color.GRAY);
+        g2d.drawRect(panelX + 20, contentY - 8, 12, 10);
+        g2d.setColor(new Color(60, 60, 60));
+        g2d.drawString("Blank (auto-skipped)", panelX + 38, contentY);
+    }
+    
+    /**
+     * Resets zoom and pan to default values
+     */
+    public void resetZoomAndPan() {
+        zoomFactor = 1.0;
+        panX = 0;
+        panY = 0;
+    }
+    
+    /**
+     * Gets current zoom factor
+     */
+    public double getZoomFactor() {
+        return zoomFactor;
+    }
+    
+    /**
+     * Sets zoom factor with bounds checking
+     */
+    public void setZoomFactor(double zoom) {
+        this.zoomFactor = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom));
+        repaint();
     }
     
     /**
