@@ -512,7 +512,7 @@ public class ImagePanel extends JPanel {
         
         g2d.setColor(Color.WHITE);
         g2d.setFont(new Font("SansSerif", Font.BOLD, 16));
-        g2d.drawString("📊 Tiling Information", panelX + 15, panelY + 23);
+        g2d.drawString("[i] Tiling Information", panelX + 15, panelY + 23);
         
         // Content area
         int contentY = panelY + 50;
@@ -522,53 +522,53 @@ public class ImagePanel extends JPanel {
         // Pages to print (highlighted)
         g2d.setColor(new Color(34, 139, 34));
         g2d.setFont(new Font("SansSerif", Font.BOLD, 14));
-        g2d.drawString("📄 Pages to print: " + selectedTiles, panelX + 15, contentY);
+        g2d.drawString("[#] Pages to print: " + selectedTiles, panelX + 15, contentY);
         contentY += lineHeight + 3;
         
         // Grid size
         g2d.setColor(new Color(60, 60, 60));
         g2d.setFont(new Font("SansSerif", Font.PLAIN, 13));
-        g2d.drawString("📐 Grid size: " + tilingResult.tilesWide + " × " + tilingResult.tilesHigh, panelX + 15, contentY);
+        g2d.drawString("[G] Grid size: " + tilingResult.tilesWide + " x " + tilingResult.tilesHigh, panelX + 15, contentY);
         contentY += lineHeight;
         
         // Paper saved (environmental impact)
         int totalBlankPages = tilingResult.tilesWide * tilingResult.tilesHigh - selectedTiles;
         g2d.setColor(new Color(76, 175, 80));
         g2d.setFont(new Font("SansSerif", Font.BOLD, 13));
-        g2d.drawString("🌱 Paper saved: " + totalBlankPages + " pages!", panelX + 15, contentY);
+        g2d.drawString("[E] Paper saved: " + totalBlankPages + " pages!", panelX + 15, contentY);
         contentY += lineHeight;
         
         // Manually excluded tiles
         if (excludedNonBlankTiles > 0) {
             g2d.setColor(new Color(255, 152, 0));
-            g2d.drawString("✋ Manually excluded: " + excludedNonBlankTiles + " tiles", panelX + 15, contentY);
+            g2d.drawString("[-] Manually excluded: " + excludedNonBlankTiles + " tiles", panelX + 15, contentY);
             contentY += lineHeight;
         }
         
         // Page size
         g2d.setColor(new Color(60, 60, 60));
-        g2d.drawString("📏 Page Size: " + String.format("%.1f × %.1f inches", 
+        g2d.drawString("[P] Page Size: " + String.format("%.1f x %.1f inches", 
             tilingResult.tileWidth / 72.0, tilingResult.tileHeight / 72.0), panelX + 15, contentY);
         contentY += lineHeight;
         
         // Scale information
         if (scale != 1.0f) {
             g2d.setColor(new Color(63, 81, 181));
-            g2d.drawString("🔍 Scale: " + String.format("%.2fx", scale), panelX + 15, contentY);
+            g2d.drawString("[S] Scale: " + String.format("%.2fx", scale), panelX + 15, contentY);
             contentY += lineHeight;
         }
         
         // Zoom information
         if (zoomFactor != 1.0) {
             g2d.setColor(new Color(156, 39, 176));
-            g2d.drawString("🔎 Zoom: " + String.format("%.1fx", zoomFactor), panelX + 15, contentY);
+            g2d.drawString("[Z] Zoom: " + String.format("%.1fx", zoomFactor), panelX + 15, contentY);
             contentY += lineHeight;
         }
         
         // Controls information
         g2d.setColor(new Color(96, 125, 139));
         g2d.setFont(new Font("SansSerif", Font.ITALIC, 11));
-        g2d.drawString("💡 Mouse wheel: zoom | Right-click + drag: pan", panelX + 15, contentY);
+        g2d.drawString("[?] Mouse wheel: zoom | Right-click + drag: pan", panelX + 15, contentY);
         contentY += 15;
         
         // Legend section with modern styling

@@ -39,7 +39,7 @@ public class Main {
             BorderFactory.createEmptyBorder(15, 15, 15, 15)
         ));
 
-        JButton settingsButton = createStyledButton("⚙️ Settings", new Color(63, 81, 181));
+        JButton settingsButton = createStyledButton("[*] Settings", new Color(63, 81, 181));
         settingsButton.addActionListener(e -> {
             SettingsDialog dialog = new SettingsDialog(frame);
             dialog.setVisible(true);
@@ -48,10 +48,10 @@ public class Main {
             }
         });
 
-        JButton selectImageButton = createStyledButton("📁 Select Image", new Color(76, 175, 80));
+        JButton selectImageButton = createStyledButton("[+] Select Image", new Color(76, 175, 80));
         selectImageButton.addActionListener(e -> selectImage());
 
-        JButton rotateImageButton = createStyledButton("🔄 Rotate Image", new Color(156, 39, 176));
+        JButton rotateImageButton = createStyledButton("[>] Rotate Image", new Color(156, 39, 176));
         rotateImageButton.addActionListener(e -> rotateImage());
 
         scaleField = createStyledTextField("1.0");
@@ -59,19 +59,19 @@ public class Main {
         originalSizeField = createStyledTextField("");
         newSizeField = createStyledTextField("");
 
-        JButton applyScaleButton = createStyledButton("✓ Apply Scale", new Color(76, 175, 80));
+        JButton applyScaleButton = createStyledButton("[√] Apply Scale", new Color(76, 175, 80));
         applyScaleButton.addActionListener(e -> applyScale());
         
-        JButton calculateScaleButton = createStyledButton("🧮 Calculate Scale", new Color(255, 193, 7));
+        JButton calculateScaleButton = createStyledButton("[=] Calculate Scale", new Color(255, 193, 7));
         calculateScaleButton.addActionListener(e -> calculateScale());
 
-        JButton printButton = createStyledButton("🖨️ Print Image", new Color(33, 150, 243));
+        JButton printButton = createStyledButton("[P] Print Image", new Color(33, 150, 243));
         printButton.addActionListener(e -> printImage());
 
-        JButton savePdfButton = createStyledButton("💾 Save to PDF", new Color(255, 87, 34));
+        JButton savePdfButton = createStyledButton("[S] Save to PDF", new Color(255, 87, 34));
         savePdfButton.addActionListener(e -> saveToPDF());
         
-        JButton clearSelectionsButton = createStyledButton("🗑️ Clear Selections", new Color(158, 158, 158));
+        JButton clearSelectionsButton = createStyledButton("[X] Clear Selections", new Color(158, 158, 158));
         clearSelectionsButton.addActionListener(e -> clearTileSelections());
 
         controlPanel.add(createStyledLabel("Image:"));
