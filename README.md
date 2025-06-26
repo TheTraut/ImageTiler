@@ -96,16 +96,33 @@ The preview panel displays:
 ### Easy Build & Run (Recommended)
 
 #### Using the Build Script
+
+**macOS/Linux:**
 ```bash
 cd ImageTiler
 ./build.sh
 ```
 
-#### Using the Compile Script (JAR Creation)
+**Windows:**
+```cmd
+cd ImageTiler
+build.bat
+```
+
+#### Using the JAR Creation Script
+
+**macOS/Linux:**
 ```bash
 cd ImageTiler
 ./compile.sh
 ```
+
+**Windows:**
+```cmd
+cd ImageTiler
+build-jar.bat
+```
+
 This creates `ImageTiler.jar` which can be:
 - Run with `java -jar ImageTiler.jar`
 - Double-clicked to run (if Java is properly configured)
@@ -149,8 +166,10 @@ ImageTiler/
 ├── lib/
 │   └── pdfbox-app-3.0.2.jar # Apache PDFBox library
 ├── build/                  # Compiled class files (auto-generated)
-├── build.sh               # Quick build and run script
-├── compile.sh             # JAR compilation script
+├── build.sh               # Quick build and run script (macOS/Linux)
+├── build.bat              # Quick build and run script (Windows)
+├── compile.sh             # JAR compilation script (macOS/Linux)
+├── build-jar.bat          # JAR compilation script (Windows)
 ├── MANIFEST.MF            # JAR manifest file
 ├── .gitignore             # Git ignore configuration
 └── README.md              # This documentation
