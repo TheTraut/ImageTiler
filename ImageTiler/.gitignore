@@ -3,6 +3,7 @@
 
 # Package Files
 *.jar
+!lib/pdfbox-app-3.0.5.jar
 *.war
 *.nar
 *.ear
