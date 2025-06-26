@@ -6,29 +6,37 @@ echo Building ImageTiler...
 
 REM Check if Java is installed
 javac -version >nul 2>&1
-if errorlevel 1 (
-    echo Error: Java compiler (javac) not found.
-    echo Please download and install the Java JDK from:
-    echo https://www.oracle.com/java/technologies/javase-jdk11-downloads.html
-    pause
-    exit /b 1
-)
+if errorlevel 1 goto :no_java
 
 REM Compile the application
 echo Compiling Java sources...
 javac -cp "lib/*;." src/*.java
+if errorlevel 1 goto :compile_failed
 
-if errorlevel 1 (
-    echo Compilation failed!
-    pause
-    exit /b 1
-) else (
-    echo Compilation successful!
-    
-    REM Ask user if they want to run the application
-    set /p choice="Do you want to run ImageTiler now? (y/n): "
-    if /i "%choice%"=="y" (
-        echo Starting ImageTiler...
-        java -cp "lib/*;src;." Main
-    )
+echo Compilation successful!
+echo.
+set /p choice="Do you want to run ImageTiler now? (y/n): "
+if /i "%choice%"=="y" (
+    echo Starting ImageTiler...
+    java -cp "lib/*;src;." Main
 )
+goto :end
+
+:no_java
+echo Error: Java compiler (javac) not found.
+echo Please download and install the Java JDK from:
+echo https://www.oracle.com/java/technologies/javase-jdk11-downloads.html
+echo.
+echo Alternative: You can also install OpenJDK from:
+echo https://adoptium.net/
+pause
+exit /b 1
+
+:compile_failed
+echo Compilation failed!
+echo Please check that all source files are present and Java is properly installed.
+pause
+exit /b 1
+
+:end
+pause

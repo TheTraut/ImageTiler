@@ -6,13 +6,7 @@ echo Building ImageTiler JAR...
 
 REM Check if Java is installed
 javac -version >nul 2>&1
-if errorlevel 1 (
-    echo Error: Java compiler (javac) not found.
-    echo Please download and install the Java JDK from:
-    echo https://www.oracle.com/java/technologies/javase-jdk11-downloads.html
-    pause
-    exit /b 1
-)
+if errorlevel 1 goto :no_java
 
 REM Create build directory
 if not exist build mkdir build
@@ -20,12 +14,7 @@ if not exist build mkdir build
 REM Compile the application
 echo Compiling Java sources...
 javac -cp "lib/*;." -d build src/*.java
-
-if errorlevel 1 (
-    echo Compilation failed!
-    pause
-    exit /b 1
-)
+if errorlevel 1 goto :compile_failed
 
 echo Compilation successful!
 
@@ -48,23 +37,41 @@ echo. >> manifest.txt
 REM Create JAR
 echo Creating JAR file...
 jar cfm ..\ImageTiler.jar manifest.txt *
-
 cd ..
 
-if errorlevel 1 (
-    echo JAR creation failed!
-    pause
-    exit /b 1
-) else (
-    echo JAR creation successful!
-    echo JAR file created: ImageTiler.jar
-    
-    REM Ask user if they want to run the JAR
-    set /p choice="Do you want to run the JAR now? (y/n): "
-    if /i "%choice%"=="y" (
-        echo Starting ImageTiler from JAR...
-        java -jar ImageTiler.jar
-    )
-)
+if errorlevel 1 goto :jar_failed
 
+echo JAR creation successful!
+echo JAR file created: ImageTiler.jar
+echo.
+set /p choice="Do you want to run the JAR now? (y/n): "
+if /i "%choice%"=="y" (
+    echo Starting ImageTiler from JAR...
+    java -jar ImageTiler.jar
+)
+goto :end
+
+:no_java
+echo Error: Java compiler (javac) not found.
+echo Please download and install the Java JDK from:
+echo https://www.oracle.com/java/technologies/javase-jdk11-downloads.html
+echo.
+echo Alternative: You can also install OpenJDK from:
+echo https://adoptium.net/
+pause
+exit /b 1
+
+:compile_failed
+echo Compilation failed!
+echo Please check that all source files are present and Java is properly installed.
+pause
+exit /b 1
+
+:jar_failed
+echo JAR creation failed!
+echo Please check that the jar command is available and working properly.
+pause
+exit /b 1
+
+:end
 pause
