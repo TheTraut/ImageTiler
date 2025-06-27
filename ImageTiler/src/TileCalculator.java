@@ -1,4 +1,47 @@
 public class TileCalculator {
+    
+    /**
+     * Calculate optimal tiling with DPI awareness for accurate physical scaling
+     * This version accounts for the relationship between pixels and physical dimensions
+     */
+    public static TilingResult calculateOptimalTilingWithDPI(int imageWidthPixels, int imageHeightPixels, 
+                                                             double pageWidthPoints, double pageHeightPoints, 
+                                                             float scale, int imageDPI, int targetDPI) {
+        // Convert image pixels to physical inches at source DPI
+        float imageWidthInches = (float) imageWidthPixels / imageDPI;
+        float imageHeightInches = (float) imageHeightPixels / imageDPI;
+        
+        // Apply scale to get desired physical dimensions
+        float scaledWidthInches = imageWidthInches * scale;
+        float scaledHeightInches = imageHeightInches * scale;
+        
+        // Convert page dimensions from points to inches
+        double pageWidthInches = ScaleCalculator.pointsToInches(pageWidthPoints);
+        double pageHeightInches = ScaleCalculator.pointsToInches(pageHeightPoints);
+        
+        // Calculate how many tiles needed
+        int tilesWidePortrait = (int) Math.ceil(scaledWidthInches / pageWidthInches);
+        int tilesHighPortrait = (int) Math.ceil(scaledHeightInches / pageHeightInches);
+        
+        int tilesWideLandscape = (int) Math.ceil(scaledWidthInches / pageHeightInches);
+        int tilesHighLandscape = (int) Math.ceil(scaledHeightInches / pageWidthInches);
+        
+        int totalTilesPortrait = tilesWidePortrait * tilesHighPortrait;
+        int totalTilesLandscape = tilesWideLandscape * tilesHighLandscape;
+        
+        boolean useLandscape = totalTilesLandscape < totalTilesPortrait;
+        
+        // Convert back to points for the result
+        if (useLandscape) {
+            return new TilingResult(tilesWideLandscape, tilesHighLandscape, 
+                                  pageHeightPoints, pageWidthPoints, 
+                                  (int)(scaledWidthInches * targetDPI), (int)(scaledHeightInches * targetDPI));
+        } else {
+            return new TilingResult(tilesWidePortrait, tilesHighPortrait, 
+                                  pageWidthPoints, pageHeightPoints, 
+                                  (int)(scaledWidthInches * targetDPI), (int)(scaledHeightInches * targetDPI));
+        }
+    }
 
     public static TilingResult calculateOptimalTiling(int imageWidth, int imageHeight, double pageWidth, double pageHeight) {
         // Calculate how many tiles would be needed for the original image size

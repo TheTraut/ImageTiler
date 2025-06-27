@@ -36,7 +36,7 @@ echo. >> manifest.txt
 
 REM Create JAR
 echo Creating JAR file...
-jar cfm ..\ImageTiler.jar manifest.txt *
+jar cfm ..\ImageTiler.jar manifest.txt * -C ..\src\main\resources .
 cd ..
 
 if errorlevel 1 goto :jar_failed

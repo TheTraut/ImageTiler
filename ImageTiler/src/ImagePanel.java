@@ -50,7 +50,7 @@ public class ImagePanel extends JPanel {
             @Override
             public void mouseClicked(MouseEvent e) {
                 if (!isPanning) {
-                    handleTileClick(e);
+snapToGrid(e.getPoint());
                 }
             }
             
@@ -117,9 +117,25 @@ public class ImagePanel extends JPanel {
                 repaint();
             }
         });
-    }
+}
 
-    public void setImage(String imagePath) {
+private void snapToGrid(Point clickPoint) {
+    // For calibration images, snap to grid intersections
+    if (isCalibrationImage()) {
+        // Calculate nearest grid intersection based on known grid spacing
+        int gridX = Math.round(clickPoint.x / (float)GridParameters.GRID_SPACING) * GridParameters.GRID_SPACING;
+        int gridY = Math.round(clickPoint.y / (float)GridParameters.GRID_SPACING) * GridParameters.GRID_SPACING;
+        
+        // Create a synthetic mouse event at the snapped position
+        Point snappedPoint = new Point(gridX, gridY);
+        handleTileClick(snappedPoint);
+    } else {
+        // For regular images, use the original click point
+        handleTileClick(clickPoint);
+    }
+}
+
+public void setImage(String imagePath) {
         try {
             image = ImageIO.read(new File(imagePath));
             rotatedImage = image;
@@ -395,6 +411,59 @@ public class ImagePanel extends JPanel {
     }
     
     /**
+     * Checks if the current loaded image is a calibration image
+     */
+    private boolean isCalibrationImage() {
+        BufferedImage image = getRotatedImage();
+        if (image == null) return false;
+        
+        // Check if dimensions match known calibration image dimensions
+        // The calibration image is 3300 x 2550 pixels
+        return (image.getWidth() == 3300 && image.getHeight() == 2550) ||
+               (image.getWidth() == 2550 && image.getHeight() == 3300); // Account for rotation
+    }
+    
+    /**
+     * Handles tile clicks using a Point coordinate
+     */
+    private void handleTileClick(Point point) {
+        if (currentTilingResult == null) return;
+        
+        // Transform coordinates to account for zoom and pan
+        double transformedX = (point.x - getWidth() / 2.0) / zoomFactor + getWidth() / 2.0 - panX;
+        double transformedY = (point.y - getHeight() / 2.0) / zoomFactor + getHeight() / 2.0 - panY;
+        
+        double tileWidthScaled = (double) lastDrawWidth / currentTilingResult.tilesWide;
+        double tileHeightScaled = (double) lastDrawHeight / currentTilingResult.tilesHigh;
+
+        int col = (int) ((transformedX - lastDrawX) / tileWidthScaled);
+        int row = (int) ((transformedY - lastDrawY) / tileHeightScaled);
+
+        // Check if click is within bounds
+        if (col >= 0 && col < currentTilingResult.tilesWide && row >= 0 && row < currentTilingResult.tilesHigh) {
+            String tileKey = col + "," + row;
+            
+            // Determine current state and cycle to next state
+            boolean isExcluded = manuallyExcludedTiles.contains(tileKey);
+            boolean isIncluded = manuallyIncludedTiles.contains(tileKey);
+            
+            if (!isExcluded && !isIncluded) {
+                // Auto → Excluded
+                manuallyExcludedTiles.add(tileKey);
+            } else if (isExcluded) {
+                // Excluded → Included
+                manuallyExcludedTiles.remove(tileKey);
+                manuallyIncludedTiles.add(tileKey);
+            } else if (isIncluded) {
+                // Included → Auto
+                manuallyIncludedTiles.remove(tileKey);
+            }
+            
+            repaint();
+        }
+    }
+    
+    /**
      * Handles mouse clicks on tiles for manual selection
      * Three-state toggle: auto → excluded → included → auto
      */
@@ -448,6 +517,14 @@ public class ImagePanel extends JPanel {
     public void clearManualSelections() {
         manuallyExcludedTiles.clear();
         manuallyIncludedTiles.clear();
+        repaint();
+    }
+    
+    /**
+     * Refreshes the display after settings changes
+     */
+    public void refreshDisplay() {
+        invalidateCache();
         repaint();
     }
     
@@ -634,10 +711,4 @@ public class ImagePanel extends JPanel {
         repaint();
     }
     
-    /**
-     * Refreshes the display to reflect current settings
-     */
-    public void refreshDisplay() {
-        repaint();
-    }
 }
