@@ -13,7 +13,7 @@ if not exist build mkdir build
 
 REM Compile the application
 echo Compiling Java sources...
-javac -cp lib\pdfbox-app-3.0.5.jar -d build src\*.java
+javac -encoding UTF-8 -cp lib\pdfbox-app-3.0.5.jar -d build src\*.java
 if errorlevel 1 goto :compile_failed
 
 echo Compilation successful!

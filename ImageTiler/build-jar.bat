@@ -13,10 +13,19 @@ if not exist build mkdir build
 
 REM Compile the application
 echo Compiling Java sources...
-javac -cp lib\pdfbox-app-3.0.5.jar -d build src\*.java
+javac -encoding UTF-8 -cp lib\pdfbox-app-3.0.5.jar -d build src\*.java
 if errorlevel 1 goto :compile_failed
 
 echo Compilation successful!
+
+REM Copy resources to build directory
+echo Copying resources...
+if exist src\main\resources (
+    xcopy /E /I /Y src\main\resources\* build\
+    echo Resources copied successfully!
+) else (
+    echo Warning: No resources directory found at src\main\resources
+)
 
 REM Extract dependencies
 echo Extracting dependencies...
@@ -36,7 +45,7 @@ echo. >> manifest.txt
 
 REM Create JAR
 echo Creating JAR file...
-jar cfm ..\ImageTiler.jar manifest.txt * -C ..\src\main\resources .
+jar cfm ..\ImageTiler.jar manifest.txt *
 cd ..
 
 if errorlevel 1 goto :jar_failed
