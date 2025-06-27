@@ -315,56 +315,32 @@ calibratedScale = GridParameters.calculateCalibratedScale(measuredWidth, measure
      */
     private void loadCalibrationImage() {
         try {
-            String calibrationImagePath = null;
+            // Load calibration image from classpath resources
+            java.io.InputStream imageStream = getClass().getResourceAsStream("/calibration/calibration.png");
             
-            // Check for calibration image in different possible locations
-            // Start with the current working directory where the files should be
-            String[] possiblePaths = {
-                "calibration_rectangle.png",
-                "calibration_reference.png", 
-                "./calibration_rectangle.png",
-                "./calibration_reference.png",
-                System.getProperty("user.dir") + "/calibration_rectangle.png",
-                System.getProperty("user.dir") + "/calibration_reference.png"
-            };
-            
-            for (String path : possiblePaths) {
-                java.io.File file = new java.io.File(path);
-                if (file.exists()) {
-                    calibrationImagePath = file.getAbsolutePath();
-                    System.out.println("Found calibration image at: " + calibrationImagePath);
-                    break;
-                }
-            }
-            
-            if (calibrationImagePath != null) {
-                imagePanel.setImage(calibrationImagePath);
-                // Ensure the image panel is refreshed
-                imagePanel.repaint();
-                System.out.println("Successfully loaded calibration image");
-            } else {
-                System.err.println("Calibration image not found in any of the expected locations");
-                // Show available files in current directory for debugging
-                java.io.File currentDir = new java.io.File(System.getProperty("user.dir"));
-                System.err.println("Current directory: " + currentDir.getAbsolutePath());
-                System.err.println("Files in current directory:");
-                for (java.io.File f : currentDir.listFiles()) {
-                    if (f.getName().toLowerCase().contains("calibr")) {
-                        System.err.println("  " + f.getName());
-                    }
-                }
+            if (imageStream != null) {
+                BufferedImage calibrationImage = javax.imageio.ImageIO.read(imageStream);
+                imageStream.close();
                 
-                JOptionPane.showMessageDialog(this,
-                    "Calibration image not found. Please ensure calibration_rectangle.png or calibration_reference.png is in the application directory.",
-                    "Calibration Image Missing",
-                    JOptionPane.WARNING_MESSAGE);
+                if (calibrationImage != null) {
+                    imagePanel.setImage(calibrationImage);
+                    imagePanel.repaint();
+                    System.out.println("Successfully loaded calibration image from resources");
+                } else {
+                    throw new Exception("Failed to decode calibration image");
+                }
+            } else {
+                throw new Exception("Calibration image resource not found at /calibration/calibration.png");
             }
+            
         } catch (Exception e) {
             System.err.println("Error loading calibration image: " + e.getMessage());
             e.printStackTrace();
+            
+            // Show user-friendly error message
             JOptionPane.showMessageDialog(this,
-                "Error loading calibration image: " + e.getMessage(),
-                "Load Error",
+                "Unable to load the calibration image. Please ensure the application is properly installed.",
+                "Calibration Image Error",
                 JOptionPane.ERROR_MESSAGE);
         }
     }

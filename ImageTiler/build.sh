@@ -23,9 +23,18 @@ if ! command -v javac &> /dev/null; then
     exit 1
 fi
 
+# Create build directory
+mkdir -p build
+
+# Copy resources to build directory
+echo "Copying resources..."
+if [ -d "src/main/resources" ]; then
+    cp -r src/main/resources/* build/
+fi
+
 # Compile the application
 echo "Compiling Java sources..."
-javac -cp "lib/*:." src/*.java
+javac -cp "lib/*:build:." -d build src/*.java
 
 if [ $? -eq 0 ]; then
     echo "✅ Compilation successful!"
@@ -35,7 +44,7 @@ if [ $? -eq 0 ]; then
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         echo "Starting ImageTiler..."
-        java -cp "lib/*:src:." Main
+        java -cp "lib/*:build:." Main
     fi
 else
     echo "❌ Compilation failed!"

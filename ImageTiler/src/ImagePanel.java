@@ -147,6 +147,15 @@ public void setImage(String imagePath) {
             e.printStackTrace();
         }
     }
+    
+    public void setImage(BufferedImage bufferedImage) {
+        image = bufferedImage;
+        rotatedImage = image;
+        rotationAngle = 0;
+        resetZoomAndPan(); // Reset zoom and pan when new image is loaded
+        invalidateCache(); // Clear cache when new image is loaded
+        repaint();
+    }
 
     public BufferedImage getImage() {
         return image;
