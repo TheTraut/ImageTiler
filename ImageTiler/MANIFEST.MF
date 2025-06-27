@@ -1,2 +1,5 @@
 Main-Class: Main
 Class-Path: lib/pdfbox-app-3.0.5.jar
+Implementation-Title: ImageTiler
+Implementation-Version: 2.1.0
+Implementation-Vendor: ImageTiler Project

@@ -2,6 +2,31 @@
 
 All notable changes to ImageTiler will be documented in this file.
 
+## [v2.1.0] - 2024-06-27
+
+### 🔧 Major Bug Fixes
+
+#### Comprehensive Calibration System Overhaul
+- **Fixed Calibration Image Loading**: Resolved resource loading issues preventing calibration images from appearing
+- **Enhanced Scale Calculation**: Improved accuracy and consistency in calibration scale factor calculations
+- **Calibration Print/Save Override**: Added special handling to ensure calibration images bypass normal tile filtering
+- **Improved User Interface**: Clearer instructions and better feedback during calibration process
+- **Tolerance Feedback System**: Added accuracy ratings (EXCELLENT/GOOD/ACCEPTABLE/WARNING/POOR) based on measurement precision
+- **Resource Management**: Fixed potential resource leaks and enhanced error handling
+
+#### Technical Improvements
+- **Build Script Enhancement**: Updated build scripts to properly include calibration resources in JAR files
+- **Detection Logic**: Added `ImagePanel.isCalibrationImage()` method for automatic calibration image detection
+- **Debug Logging**: Enhanced logging for calibration image processing and troubleshooting
+- **Error Handling**: Comprehensive validation and user-friendly error messages
+
+### 🛠️ Infrastructure Updates
+- **Resource Path Fixes**: Corrected calibration image resource paths in build scripts
+- **JAR Creation**: Enhanced JAR build process to ensure all resources are properly included
+- **Version Management**: Updated version tracking and release documentation
+
+---
+
 ## [v2.0.0] - 2024-06-25
 
 ### 🆕 Major New Features
@@ -90,6 +115,7 @@ All notable changes to ImageTiler will be documented in this file.
 
 | Version | Release Date | Key Features |
 |---------|--------------|-------------|
+| v2.1.0  | 2024-06-27   | Calibration system overhaul, print/save override, enhanced build scripts |
 | v2.0.0  | 2024-06-25   | Settings system, visual customization, manual tile selection |
 | v1.0.0  | Previous     | Core tiling functionality, basic GUI, PDF export |
 

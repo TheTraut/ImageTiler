@@ -162,6 +162,32 @@ public void setImage(String imagePath) {
     }
 
     public BufferedImage getRotatedImage() {
+        // Log calibration detection when the image matches calibration dimensions
+        if (rotatedImage != null) {
+            int width = rotatedImage.getWidth();
+            int height = rotatedImage.getHeight();
+            
+            // Check if dimensions match known calibration image dimensions (3300×2550 or rotated)
+            boolean isCalibration = (width == 3300 && height == 2550) || (width == 2550 && height == 3300);
+            
+            if (isCalibration) {
+                System.out.println("[CALIBRATION] getRotatedImage() detected calibration image: " + width + "×" + height + " pixels");
+                System.out.println("[CALIBRATION] Image type: " + rotatedImage.getType());
+                System.out.println("[CALIBRATION] Color model: " + rotatedImage.getColorModel().getClass().getSimpleName());
+                System.out.println("[CALIBRATION] Has alpha: " + rotatedImage.getColorModel().hasAlpha());
+                System.out.println("[CALIBRATION] Rotation angle: " + rotationAngle + " degrees");
+            }
+            
+            // Validate that image is not empty/corrupted
+            if (width <= 0 || height <= 0) {
+                System.err.println("[ERROR] getRotatedImage() returning image with invalid dimensions: " + width + "×" + height);
+            } else {
+                System.out.println("[DEBUG] getRotatedImage() returning valid image: " + width + "×" + height + " pixels");
+            }
+        } else {
+            System.err.println("[ERROR] getRotatedImage() returning null image!");
+        }
+        
         return rotatedImage;
     }
 
@@ -395,8 +421,25 @@ public void setImage(String imagePath) {
                                       !tilingResultsEqual(cachedTilingResult, tilingResult);
         
         if (needsRecalculation) {
-            // Recalculate and cache
-            cachedNonBlankTiles = TileCalculator.getNonBlankTiles(tilingResult, currentImage);
+            // Check if this is a calibration image
+            boolean isCalibration = isCalibrationImage(currentImage);
+            
+            if (isCalibration) {
+                System.out.println("[CALIBRATION] getCachedNonBlankTiles detected calibration image: " + currentImage.getWidth() + "×" + currentImage.getHeight() + " pixels");
+                System.out.println("[CALIBRATION] Returning all tiles for calibration image display");
+                
+                // For calibration images, return all tiles (no blank tile filtering)
+                cachedNonBlankTiles = new java.util.ArrayList<>();
+                for (int row = 0; row < tilingResult.tilesHigh; row++) {
+                    for (int col = 0; col < tilingResult.tilesWide; col++) {
+                        cachedNonBlankTiles.add(new TileCalculator.TileInfo(col, row, row * tilingResult.tilesWide + col + 1));
+                    }
+                }
+            } else {
+                // For regular images, use normal blank tile detection
+                cachedNonBlankTiles = TileCalculator.getNonBlankTiles(tilingResult, currentImage);
+            }
+            
             cachedTilingResult = tilingResult;
             cachedScale = scale;
             cachedAnalysisImage = currentImage;
@@ -422,8 +465,20 @@ public void setImage(String imagePath) {
     /**
      * Checks if the current loaded image is a calibration image
      */
-    private boolean isCalibrationImage() {
+    public boolean isCalibrationImage() {
         BufferedImage image = getRotatedImage();
+        if (image == null) return false;
+        
+        // Check if dimensions match known calibration image dimensions
+        // The calibration image is 3300 x 2550 pixels
+        return (image.getWidth() == 3300 && image.getHeight() == 2550) ||
+               (image.getWidth() == 2550 && image.getHeight() == 3300); // Account for rotation
+    }
+    
+    /**
+     * Static method to check if the given image is a calibration image
+     */
+    public static boolean isCalibrationImage(BufferedImage image) {
         if (image == null) return false;
         
         // Check if dimensions match known calibration image dimensions
@@ -541,18 +596,38 @@ public void setImage(String imagePath) {
      * Gets the final list of tiles to print/save (auto-selected + manually included - manually excluded)
      */
     public java.util.List<TileCalculator.TileInfo> getSelectedTiles(TileCalculator.TilingResult tilingResult, BufferedImage image) {
+        System.out.println("[DEBUG] getSelectedTiles called");
+        System.out.println("[DEBUG] Image for analysis: " + (image != null ? image.getWidth() + "x" + image.getHeight() : "NULL"));
+        System.out.println("[DEBUG] Tiling result: " + tilingResult.tilesWide + "x" + tilingResult.tilesHigh + " tiles");
+        
+        // Guard: For calibration images, return a single tile covering the full sheet
+        if (isCalibrationImage()) {
+            System.out.println("[CALIBRATION] Detected calibration image, returning single full-sheet tile");
+            java.util.List<TileCalculator.TileInfo> calibrationTiles = new java.util.ArrayList<>();
+            // Create a single tile covering the entire image (col=0, row=0, tileNumber=1)
+            calibrationTiles.add(new TileCalculator.TileInfo(0, 0, 1));
+            System.out.println("[CALIBRATION] Returning 1 tile for full sheet printing");
+            return calibrationTiles;
+        }
+        
         java.util.List<TileCalculator.TileInfo> allNonBlankTiles = TileCalculator.getNonBlankTiles(tilingResult, image);
+        System.out.println("[DEBUG] Non-blank tiles found: " + allNonBlankTiles.size());
+        
         java.util.List<TileCalculator.TileInfo> selectedTiles = new java.util.ArrayList<>();
         java.util.Set<String> addedTiles = new java.util.HashSet<>();
         
         // Add auto-selected tiles (not manually excluded)
         for (TileCalculator.TileInfo tile : allNonBlankTiles) {
             String tileKey = tile.col + "," + tile.row;
+            System.out.println("[DEBUG] Processing tile: " + tileKey + " (excluded: " + manuallyExcludedTiles.contains(tileKey) + ")");
             if (!manuallyExcludedTiles.contains(tileKey)) {
                 selectedTiles.add(tile);
                 addedTiles.add(tileKey);
             }
         }
+        
+        System.out.println("[DEBUG] Manual exclusions: " + manuallyExcludedTiles.size());
+        System.out.println("[DEBUG] Manual inclusions: " + manuallyIncludedTiles.size());
         
         // Add manually included tiles (even if they weren't auto-selected)
         for (String tileKey : manuallyIncludedTiles) {
@@ -562,9 +637,11 @@ public void setImage(String imagePath) {
                 int row = Integer.parseInt(parts[1]);
                 int tileNumber = row * tilingResult.tilesWide + col + 1;
                 selectedTiles.add(new TileCalculator.TileInfo(col, row, tileNumber));
+                System.out.println("[DEBUG] Added manually included tile: " + tileKey);
             }
         }
         
+        System.out.println("[DEBUG] Final selected tiles: " + selectedTiles.size());
         return selectedTiles;
     }
     

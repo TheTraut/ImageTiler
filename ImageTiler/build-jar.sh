@@ -52,16 +52,32 @@ if [ -d "META-INF" ]; then
     rm -rf META-INF
 fi
 
+# Remove any calibration directory from extracted dependencies to avoid duplicates
+# We'll include the one from resources instead
+if [ -d "calibration" ]; then
+    rm -rf calibration
+    echo "Removed calibration directory from extracted dependencies to avoid duplicates"
+fi
+
 # Create manifest
 cat > manifest.txt << EOF
 Manifest-Version: 1.0
 Main-Class: Main
+Implementation-Title: ImageTiler
+Implementation-Version: 2.1.0
+Implementation-Vendor: ImageTiler Project
 
 EOF
 
 # Create JAR with resources included
 echo "Creating JAR file..."
-jar cfm ../ImageTiler.jar manifest.txt * -C ../src/main/resources .
+if [ -d "../src/main/resources" ]; then
+    jar cfm ../ImageTiler.jar manifest.txt * -C ../src/main/resources .
+    echo "✅ Resources included in JAR (calibration image, etc.)"
+else
+    jar cfm ../ImageTiler.jar manifest.txt *
+    echo "⚠️  Warning: No resources directory found"
+fi
 cd ..
 
 if [ $? -ne 0 ]; then

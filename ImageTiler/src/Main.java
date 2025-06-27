@@ -24,7 +24,7 @@ public class Main {
     }
 
     private void createAndShowGUI() {
-        frame = new JFrame("ImageTiler - Professional Image Tiling Solution");
+        frame = new JFrame("ImageTiler v2.1.0 - Professional Image Tiling Solution");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setSize(1200, 700);
         frame.setLocationRelativeTo(null);

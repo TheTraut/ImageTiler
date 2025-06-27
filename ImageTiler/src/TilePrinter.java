@@ -206,21 +206,95 @@ public class TilePrinter {
      * Print image with manual tile selection considerations
      */
     public static void printTiledImageWithSelection(BufferedImage image, float scale, boolean isRotated, ImagePanel imagePanel) {
+        // Debug logging for issue isolation
+        System.out.println("[DEBUG] printTiledImageWithSelection called");
+        System.out.println("[DEBUG] Image: " + (image != null ? image.getWidth() + "x" + image.getHeight() : "NULL"));
+        System.out.println("[DEBUG] Scale: " + scale);
+        System.out.println("[DEBUG] IsRotated: " + isRotated);
+        
+        // Comprehensive image validation
+        if (image == null) {
+            System.err.println("[ERROR] Image is null in printTiledImageWithSelection!");
+            javax.swing.JOptionPane.showMessageDialog(null, "Error: No image to print. Image is null.", "Print Error", javax.swing.JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        
+        // Check for calibration image using ImagePanel.isCalibrationImage()
+        boolean isCalibration = ImagePanel.isCalibrationImage(image);
+        
+        if (isCalibration) {
+            System.out.println("[CALIBRATION] printTiledImageWithSelection received calibration image: " + image.getWidth() + "×" + image.getHeight() + " pixels");
+            System.out.println("[CALIBRATION] Image type: " + image.getType());
+            System.out.println("[CALIBRATION] Color model: " + image.getColorModel().getClass().getSimpleName());
+            System.out.println("[CALIBRATION] Has alpha: " + image.getColorModel().hasAlpha());
+        }
+        
+        // Validate image dimensions
+        int width = image.getWidth();
+        int height = image.getHeight();
+        if (width <= 0 || height <= 0) {
+            System.err.println("[ERROR] Invalid image dimensions in printTiledImageWithSelection: " + width + "×" + height);
+            javax.swing.JOptionPane.showMessageDialog(null, "Error: Invalid image dimensions: " + width + "×" + height, "Print Error", javax.swing.JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        
+        System.out.println("[VALIDATION] printTiledImageWithSelection received valid non-null image: " + width + "×" + height + " pixels");
+        
         PrinterJob job = PrinterJob.getPrinterJob();
 
         // Pre-calculate non-blank tiles using the same logic as the display
         double pageWidth = 8.27 * 72; // A4 width in points (portrait)
         double pageHeight = 11.69 * 72; // A4 height in points (portrait)
         
+        System.out.println("[DEBUG] Page size: " + pageWidth + "x" + pageHeight + " points");
+        
         TileCalculator.TilingResult tilingResult;
-        if (scale == 1.0f) {
-            // At scale 1.0, use single page preview (auto-fit to one page)
-            tilingResult = TileCalculator.calculateSinglePagePreview(image.getWidth(), image.getHeight(), pageWidth, pageHeight);
+        java.util.List<TileCalculator.TileInfo> selectedTiles;
+        
+        // Handle calibration images specially
+        if (isCalibration) {
+            System.out.println("[CALIBRATION] Bypassing non-blank tile filtering and user selection for calibration image");
+            
+            if (scale == 1.0f) {
+                // For scale=1.0, use single page preview and print that single page unconditionally
+                tilingResult = TileCalculator.calculateSinglePagePreview(image.getWidth(), image.getHeight(), pageWidth, pageHeight);
+                System.out.println("[CALIBRATION] Using single page preview for scale=1.0");
+                
+                // Create a single tile covering the entire image
+                selectedTiles = new java.util.ArrayList<>();
+                selectedTiles.add(new TileCalculator.TileInfo(0, 0, 1));
+            } else {
+                // For other scales, generate all tiles
+                tilingResult = TileCalculator.calculateScaledTiling(image.getWidth(), image.getHeight(), pageWidth, pageHeight, scale);
+                System.out.println("[CALIBRATION] Generating all tiles for scaled calibration image");
+                
+                // Generate all tiles
+                selectedTiles = new java.util.ArrayList<>();
+                for (int row = 0; row < tilingResult.tilesHigh; row++) {
+                    for (int col = 0; col < tilingResult.tilesWide; col++) {
+                        selectedTiles.add(new TileCalculator.TileInfo(col, row, row * tilingResult.tilesWide + col + 1));
+                    }
+                }
+            }
         } else {
-            // When scaled, calculate actual tiling for the scaled dimensions
-            tilingResult = TileCalculator.calculateScaledTiling(image.getWidth(), image.getHeight(), pageWidth, pageHeight, scale);
+            // Normal processing for non-calibration images
+            if (scale == 1.0f) {
+                // At scale 1.0, use single page preview (auto-fit to one page)
+                tilingResult = TileCalculator.calculateSinglePagePreview(image.getWidth(), image.getHeight(), pageWidth, pageHeight);
+                System.out.println("[DEBUG] Using single page preview");
+            } else {
+                // When scaled, calculate actual tiling for the scaled dimensions
+                tilingResult = TileCalculator.calculateScaledTiling(image.getWidth(), image.getHeight(), pageWidth, pageHeight, scale);
+                System.out.println("[DEBUG] Using scaled tiling");
+            }
+            
+            selectedTiles = imagePanel.getSelectedTiles(tilingResult, image);
         }
-        java.util.List<TileCalculator.TileInfo> selectedTiles = imagePanel.getSelectedTiles(tilingResult, image);
+        
+        System.out.println("[DEBUG] Tiling result: " + tilingResult.tilesWide + "x" + tilingResult.tilesHigh + " tiles");
+        System.out.println("[DEBUG] Tile size: " + tilingResult.tileWidth + "x" + tilingResult.tileHeight + " points");
+        System.out.println("[DEBUG] Image size in result: " + tilingResult.imageWidth + "x" + tilingResult.imageHeight + " pixels");
+        System.out.println("[DEBUG] Selected tiles count: " + selectedTiles.size());
 
         job.setPrintable(new Printable() {
             @Override
@@ -297,6 +371,40 @@ public class TilePrinter {
      * Save image to PDF with manual tile selection considerations
      */
     public static void saveTiledImageToPDFWithSelection(BufferedImage image, float scale, boolean isRotated, ImagePanel imagePanel) {
+        // Debug logging for issue isolation
+        System.out.println("[DEBUG] saveTiledImageToPDFWithSelection called");
+        System.out.println("[DEBUG] Image: " + (image != null ? image.getWidth() + "x" + image.getHeight() : "NULL"));
+        System.out.println("[DEBUG] Scale: " + scale);
+        System.out.println("[DEBUG] IsRotated: " + isRotated);
+        
+        // Comprehensive image validation
+        if (image == null) {
+            System.err.println("[ERROR] Image is null in saveTiledImageToPDFWithSelection!");
+            javax.swing.JOptionPane.showMessageDialog(null, "Error: No image to save. Image is null.", "PDF Save Error", javax.swing.JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        
+        // Check for calibration image using ImagePanel.isCalibrationImage()
+        boolean isCalibration = ImagePanel.isCalibrationImage(image);
+        
+        if (isCalibration) {
+            System.out.println("[CALIBRATION] saveTiledImageToPDFWithSelection received calibration image: " + image.getWidth() + "×" + image.getHeight() + " pixels");
+            System.out.println("[CALIBRATION] Image type: " + image.getType());
+            System.out.println("[CALIBRATION] Color model: " + image.getColorModel().getClass().getSimpleName());
+            System.out.println("[CALIBRATION] Has alpha: " + image.getColorModel().hasAlpha());
+        }
+        
+        // Validate image dimensions
+        int width = image.getWidth();
+        int height = image.getHeight();
+        if (width <= 0 || height <= 0) {
+            System.err.println("[ERROR] Invalid image dimensions in saveTiledImageToPDFWithSelection: " + width + "×" + height);
+            javax.swing.JOptionPane.showMessageDialog(null, "Error: Invalid image dimensions: " + width + "×" + height, "PDF Save Error", javax.swing.JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        
+        System.out.println("[VALIDATION] saveTiledImageToPDFWithSelection received valid non-null image: " + width + "×" + height + " pixels");
+        
         // Let user choose where to save the PDF
         JFileChooser fileChooser = new JFileChooser();
         fileChooser.setDialogTitle("Save PDF As...");
@@ -341,14 +449,44 @@ public class TilePrinter {
         double pageHeight = PDRectangle.A4.getHeight();
         
         TileCalculator.TilingResult tilingResult;
-        if (scale == 1.0f) {
-            // At scale 1.0, use single page preview (auto-fit to one page)
-            tilingResult = TileCalculator.calculateSinglePagePreview(image.getWidth(), image.getHeight(), pageWidth, pageHeight);
+        java.util.List<TileCalculator.TileInfo> selectedTiles;
+        
+        // Handle calibration images specially
+        if (isCalibration) {
+            System.out.println("[CALIBRATION] Bypassing non-blank tile filtering and user selection for calibration image in PDF save");
+            
+            if (scale == 1.0f) {
+                // For scale=1.0, use single page preview and save that single page unconditionally
+                tilingResult = TileCalculator.calculateSinglePagePreview(image.getWidth(), image.getHeight(), pageWidth, pageHeight);
+                System.out.println("[CALIBRATION] Using single page preview for scale=1.0 in PDF save");
+                
+                // Create a single tile covering the entire image
+                selectedTiles = new java.util.ArrayList<>();
+                selectedTiles.add(new TileCalculator.TileInfo(0, 0, 1));
+            } else {
+                // For other scales, generate all tiles
+                tilingResult = TileCalculator.calculateScaledTiling(image.getWidth(), image.getHeight(), pageWidth, pageHeight, scale);
+                System.out.println("[CALIBRATION] Generating all tiles for scaled calibration image in PDF save");
+                
+                // Generate all tiles
+                selectedTiles = new java.util.ArrayList<>();
+                for (int row = 0; row < tilingResult.tilesHigh; row++) {
+                    for (int col = 0; col < tilingResult.tilesWide; col++) {
+                        selectedTiles.add(new TileCalculator.TileInfo(col, row, row * tilingResult.tilesWide + col + 1));
+                    }
+                }
+            }
         } else {
-            // When scaled, calculate actual tiling for the scaled dimensions
-            tilingResult = TileCalculator.calculateScaledTiling(image.getWidth(), image.getHeight(), pageWidth, pageHeight, scale);
+            // Normal processing for non-calibration images
+            if (scale == 1.0f) {
+                // At scale 1.0, use single page preview (auto-fit to one page)
+                tilingResult = TileCalculator.calculateSinglePagePreview(image.getWidth(), image.getHeight(), pageWidth, pageHeight);
+            } else {
+                // When scaled, calculate actual tiling for the scaled dimensions
+                tilingResult = TileCalculator.calculateScaledTiling(image.getWidth(), image.getHeight(), pageWidth, pageHeight, scale);
+            }
+            selectedTiles = imagePanel.getSelectedTiles(tilingResult, image);
         }
-        java.util.List<TileCalculator.TileInfo> selectedTiles = imagePanel.getSelectedTiles(tilingResult, image);
         
         // Calculate the actual scaled dimensions for rendering using baseline approach
         TileCalculator.TilingResult baselineResult = TileCalculator.calculateSinglePagePreview(image.getWidth(), image.getHeight(), pageWidth, pageHeight);
