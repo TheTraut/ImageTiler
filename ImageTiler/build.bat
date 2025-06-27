@@ -8,17 +8,30 @@ REM Check if Java is installed
 javac -version >nul 2>&1
 if errorlevel 1 goto :no_java
 
+REM Create build directory
+if not exist build mkdir build
+
 REM Compile the application
 echo Compiling Java sources...
-javac -cp lib\pdfbox-app-3.0.5.jar src\*.java
+javac -cp lib\pdfbox-app-3.0.5.jar -d build src\*.java
 if errorlevel 1 goto :compile_failed
 
 echo Compilation successful!
+
+REM Copy resources to build directory
+echo Copying resources...
+if exist src\main\resources (
+    xcopy /E /I /Y src\main\resources\* build\
+    echo Resources copied successfully!
+) else (
+    echo Warning: No resources directory found at src\main\resources
+)
+
 echo.
 set /p choice="Do you want to run ImageTiler now? (y/n): "
 if /i "%choice%"=="y" (
     echo Starting ImageTiler...
-    java -cp "lib\pdfbox-app-3.0.5.jar;src;." Main
+    java -cp "lib\pdfbox-app-3.0.5.jar;build;." Main
 )
 goto :end
 

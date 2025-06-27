@@ -193,10 +193,11 @@ public class MeasurementHelperDialog extends JDialog {
                 break;
                 
             case 2:
-                instructions = "STEP 2: Measure the Print\n\n" +
-                    "Use a ruler to measure the actual printed size of your image. " +
-                    "Measure the width and height of the image content (not the paper size).\n\n" +
-                    "Enter your measurements in inches below. Be as accurate as possible - " +
+                instructions = "STEP 2: Measure the Calibration Rectangle\n\n" +
+                    "Use a ruler to measure the actual printed size of the calibration rectangle (the black outline rectangle). " +
+                    "Measure from outer edge to outer edge of the rectangle outline.\n\n" +
+                    "Expected dimensions: 4.00 × 3.00 inches\n" +
+                    "Enter your actual measurements in inches below. Be as accurate as possible - " +
                     "small measurement errors can lead to significant scaling problems in large tiled prints.";
                 calculateScaleButton.setEnabled(true);
                 break;
@@ -273,23 +274,31 @@ public class MeasurementHelperDialog extends JDialog {
             // Use the average DPI for calibration
             float averageDPI = (actualWidthDPI + actualHeightDPI) / 2.0f;
             
-// Calculate the scale using the simple rectangle approach
-// Use the direct measurement vs expected size
-calibratedScale = GridParameters.calculateCalibratedScale(measuredWidth, measuredHeight);
+            // Calculate the scale using the simple rectangle approach
+            // Use the direct measurement vs expected size
+            calibratedScale = GridParameters.calculateCalibratedScale(measuredWidth, measuredHeight);
             
             calibrationCompleted = true;
             currentStep = 3;
             updateStepDisplay();
             updateStepPanelLayout();
             
+            // Calculate accuracy and provide feedback
+            String toleranceMessage = getToleranceMessage(calibratedScale);
+            
             // Show detailed results
             String message = String.format(
                 "Calibration Results:\n\n" +
                 "Measured size: %.2f × %.2f inches\n" +
+                "Expected size: %.2f × %.2f inches\n" +
                 "Calculated printer DPI: %.1f\n" +
                 "Calibrated scale factor: %.3fx\n\n" +
+                "Accuracy: %s\n\n" +
                 "This scale factor will be applied to compensate for your printer's actual output size.",
-                measuredWidth, measuredHeight, averageDPI, calibratedScale);
+                measuredWidth, measuredHeight, 
+                GridParameters.CALIBRATION_RECTANGLE_WIDTH_INCHES, 
+                GridParameters.CALIBRATION_RECTANGLE_HEIGHT_INCHES,
+                averageDPI, calibratedScale, toleranceMessage);
             
             JOptionPane.showMessageDialog(this, message, "Calibration Complete", 
                 JOptionPane.INFORMATION_MESSAGE);
@@ -355,5 +364,25 @@ calibratedScale = GridParameters.calculateCalibratedScale(measuredWidth, measure
         // The calibration image is 3300 x 2550 pixels
         return (image.getWidth() == 3300 && image.getHeight() == 2550) ||
                (image.getWidth() == 2550 && image.getHeight() == 3300); // Account for rotation
+    }
+    
+    /**
+     * Provides tolerance feedback based on the calibrated scale factor
+     */
+    private String getToleranceMessage(float scale) {
+        float deviation = Math.abs(scale - 1.0f);
+        float percentError = deviation * 100.0f;
+        
+        if (percentError <= 0.5f) {
+            return "✅ EXCELLENT (±0.5% or better)";
+        } else if (percentError <= 1.0f) {
+            return "✅ GOOD (±1% tolerance)";
+        } else if (percentError <= 2.0f) {
+            return "⚠️ ACCEPTABLE (±2% tolerance)";
+        } else if (percentError <= 5.0f) {
+            return "⚠️ WARNING (±5% error - check measurements)";
+        } else {
+            return "❌ POOR (>5% error - please re-measure or check printer settings)";
+        }
     }
 }
