@@ -134,22 +134,30 @@ public class TileCalculator {
      * Determines if a tile contains meaningful image content by analyzing actual pixels
      */
     public static boolean tileContainsMeaningfulContent(int col, int row, TilingResult tilingResult, java.awt.image.BufferedImage image) {
+        System.out.println("[DEBUG] tileContainsMeaningfulContent for tile (" + col + "," + row + ")");
+        
         // Calculate tile boundaries in the scaled image space
         double tileStartX = col * tilingResult.tileWidth;
         double tileStartY = row * tilingResult.tileHeight;
         double tileEndX = Math.min((col + 1) * tilingResult.tileWidth, tilingResult.imageWidth);
         double tileEndY = Math.min((row + 1) * tilingResult.tileHeight, tilingResult.imageHeight);
         
+        System.out.println("[DEBUG] Tile bounds in scaled space: (" + tileStartX + "," + tileStartY + ") to (" + tileEndX + "," + tileEndY + ")");
+        
         // Check if the tile actually has any content (width and height > 0)
         boolean hasContent = (tileEndX > tileStartX) && (tileEndY > tileStartY);
         boolean intersectsImage = tileStartX < tilingResult.imageWidth && tileStartY < tilingResult.imageHeight;
         
+        System.out.println("[DEBUG] hasContent: " + hasContent + ", intersectsImage: " + intersectsImage);
+        
         if (!hasContent || !intersectsImage) {
+            System.out.println("[DEBUG] Tile rejected: no content or doesn't intersect");
             return false;
         }
         
         // If we don't have the image for pixel analysis, use basic bounds checking
         if (image == null) {
+            System.out.println("[DEBUG] No image provided, using bounds checking");
             // For a more conservative approach, consider tiles on the edges that are very small
             double tileWidth = tileEndX - tileStartX;
             double tileHeight = tileEndY - tileStartY;
@@ -160,26 +168,40 @@ public class TileCalculator {
             return (tileArea / fullTileArea) > 0.1;
         }
         
+        System.out.println("[DEBUG] Converting to original image coordinates");
+        
         // Convert scaled image coordinates back to original image coordinates for pixel analysis
         // The tilingResult.imageWidth/Height represent the scaled dimensions
         // We need to map back to the original image dimensions
         double scaleFactorX = (double) image.getWidth() / tilingResult.imageWidth;
         double scaleFactorY = (double) image.getHeight() / tilingResult.imageHeight;
         
+        System.out.println("[DEBUG] Scale factors: X=" + scaleFactorX + ", Y=" + scaleFactorY);
+        
         int originalStartX = (int) (tileStartX * scaleFactorX);
         int originalStartY = (int) (tileStartY * scaleFactorY);
         int originalEndX = (int) Math.min(tileEndX * scaleFactorX, image.getWidth());
         int originalEndY = (int) Math.min(tileEndY * scaleFactorY, image.getHeight());
         
+        System.out.println("[DEBUG] Original image bounds: (" + originalStartX + "," + originalStartY + ") to (" + originalEndX + "," + originalEndY + ")");
+        
         // Pixel-based analysis using original image coordinates
-        return analyzePixelContent(image, originalStartX, originalStartY, originalEndX, originalEndY);
+        boolean result = analyzePixelContent(image, originalStartX, originalStartY, originalEndX, originalEndY);
+        System.out.println("[DEBUG] Pixel analysis result: " + result);
+        return result;
     }
     
     /**
      * Analyzes the actual pixel content within a tile region
      */
     private static boolean analyzePixelContent(java.awt.image.BufferedImage image, int startX, int startY, int endX, int endY) {
-        if (image == null) return true;
+        System.out.println("[DEBUG] analyzePixelContent called");
+        System.out.println("[DEBUG] Region bounds: (" + startX + "," + startY + ") to (" + endX + "," + endY + ")");
+        
+        if (image == null) {
+            System.out.println("[DEBUG] No image provided, returning true");
+            return true;
+        }
         
         // Ensure bounds are within the image
         startX = Math.max(0, startX);
@@ -187,22 +209,30 @@ public class TileCalculator {
         endX = Math.min(image.getWidth(), endX);
         endY = Math.min(image.getHeight(), endY);
         
+        System.out.println("[DEBUG] Adjusted bounds: (" + startX + "," + startY + ") to (" + endX + "," + endY + ")");
+        
         // If the region is invalid or too small, consider it empty
         if (startX >= endX || startY >= endY) {
+            System.out.println("[DEBUG] Invalid region, returning false");
             return false;
         }
         
         int regionWidth = endX - startX;
         int regionHeight = endY - startY;
         
+        System.out.println("[DEBUG] Region size: " + regionWidth + "x" + regionHeight);
+        
         // If the region is very small (less than 5x5 pixels), consider it empty
         if (regionWidth < 5 || regionHeight < 5) {
+            System.out.println("[DEBUG] Region too small, returning false");
             return false;
         }
         
         int meaningfulPixels = 0;
         int totalPixels = 0;
         int sampleStep = Math.max(1, Math.min(regionWidth, regionHeight) / 15); // Adaptive sampling
+        
+        System.out.println("[DEBUG] Sample step: " + sampleStep);
         
         // More robust pixel analysis with better sampling
         for (int y = startY; y < endY; y += sampleStep) {
@@ -232,12 +262,20 @@ public class TileCalculator {
             }
         }
         
-        if (totalPixels == 0) return false;
+        System.out.println("[DEBUG] Pixel analysis: " + meaningfulPixels + " meaningful out of " + totalPixels + " total");
+        
+        if (totalPixels == 0) {
+            System.out.println("[DEBUG] No pixels analyzed, returning false");
+            return false;
+        }
         
         // Use a more balanced threshold for meaningful content
         // Require at least 3% of pixels to have meaningful content (less aggressive)
         double contentRatio = (double) meaningfulPixels / totalPixels;
-        return contentRatio > 0.03;
+        System.out.println("[DEBUG] Content ratio: " + contentRatio + " (threshold: 0.03)");
+        boolean result = contentRatio > 0.03;
+        System.out.println("[DEBUG] Final pixel analysis result: " + result);
+        return result;
     }
 
     /**
@@ -252,17 +290,25 @@ public class TileCalculator {
      * Uses pixel analysis if image is provided
      */
     public static java.util.List<TileInfo> getNonBlankTiles(TilingResult tilingResult, java.awt.image.BufferedImage image) {
+        System.out.println("[DEBUG] getNonBlankTiles called");
+        System.out.println("[DEBUG] Tiling result: " + tilingResult.tilesWide + "x" + tilingResult.tilesHigh);
+        System.out.println("[DEBUG] Image: " + (image != null ? image.getWidth() + "x" + image.getHeight() : "NULL"));
+        System.out.println("[DEBUG] Tile dimensions: " + tilingResult.tileWidth + "x" + tilingResult.tileHeight);
+        System.out.println("[DEBUG] Result image dimensions: " + tilingResult.imageWidth + "x" + tilingResult.imageHeight);
+        
         java.util.List<TileInfo> nonBlankTiles = new java.util.ArrayList<>();
         
         for (int row = 0; row < tilingResult.tilesHigh; row++) {
             for (int col = 0; col < tilingResult.tilesWide; col++) {
                 boolean hasContent = tileContainsMeaningfulContent(col, row, tilingResult, image);
+                System.out.println("[DEBUG] Tile (" + col + "," + row + ") has content: " + hasContent);
                 if (hasContent) {
                     nonBlankTiles.add(new TileInfo(col, row, row * tilingResult.tilesWide + col + 1));
                 }
             }
         }
         
+        System.out.println("[DEBUG] Total non-blank tiles: " + nonBlankTiles.size());
         return nonBlankTiles;
     }
 

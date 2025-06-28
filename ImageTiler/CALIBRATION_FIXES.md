@@ -61,6 +61,33 @@
 
 **Result**: Robust error handling and no resource leaks.
 
+### 6. **Calibration Print/Save Override** ✅
+**Problem**: Calibration images were being processed like regular images, causing tile filtering and user selection logic to interfere with calibration functionality.
+
+**Solution**:
+- Added `ImagePanel.isCalibrationImage()` detection method based on known calibration image dimensions (3300×2550 or 2550×3300 pixels)
+- Implemented special handling in `TilePrinter.printTiledImageWithSelection()` that bypasses normal tile filtering for calibration images
+- Implemented special handling in `TilePrinter.saveTiledImageToPDFWithSelection()` that bypasses normal tile filtering for calibration images
+- For scale=1.0: Uses single page preview and unconditionally prints/saves the complete calibration image
+- For other scales: Generates all tiles without blank detection filtering to ensure complete calibration output
+- Added comprehensive debug logging to track calibration image processing
+
+**Technical Details**:
+```java
+// Detection logic in ImagePanel.isCalibrationImage()
+return (image.getWidth() == 3300 && image.getHeight() == 2550) ||
+       (image.getWidth() == 2550 && image.getHeight() == 3300);
+
+// Override logic in TilePrinter methods
+boolean isCalibration = ImagePanel.isCalibrationImage(image);
+if (isCalibration) {
+    // Bypass normal tile selection and filtering
+    // Generate all tiles or single page unconditionally
+}
+```
+
+**Result**: Calibration images now print and save correctly without interference from blank tile detection or manual tile selection features.
+
 ## Testing Status
 
 ### ✅ Completed Tests:

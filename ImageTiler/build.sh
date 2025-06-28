@@ -30,6 +30,9 @@ mkdir -p build
 echo "Copying resources..."
 if [ -d "src/main/resources" ]; then
     cp -r src/main/resources/* build/
+    echo "✅ Resources copied (including calibration image)"
+else
+    echo "⚠️  Warning: src/main/resources directory not found"
 fi
 
 # Compile the application
